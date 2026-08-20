@@ -15,6 +15,7 @@ const controlMenu = document.querySelector("#controlMenu");
 const controlLabel = document.querySelector("#controlLabel");
 const studentHint = document.querySelector("#studentHint");
 const toast = document.querySelector("#toast");
+const vmScreen = document.querySelector(".vm-screen");
 
 let profile = null;
 let room = null;
@@ -23,10 +24,25 @@ let roomStateChannel = null;
 let agentStatusTimer = null;
 let toastTimer = null;
 
+let rtcPeer = null;
+let rtcSignalChannel = null;
+let rtcPeerId = null;
+let rtcAgentUserId = null;
+let rtcUserId = null;
+let rtcVideo = null;
+let pendingRemoteIce = [];
+
 const modeText = {
   teacher: "老師控制",
   student: "學生控制",
   shared: "雙人控制"
+};
+
+const RTC_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ]
 };
 
 function accountToEmail(value) {
@@ -38,7 +54,37 @@ function showToast(text) {
   toast.textContent = text;
   toast.classList.remove("hidden");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.add("hidden"), 1600);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 1800);
+}
+
+function ensureVmVideo() {
+  if (rtcVideo) return rtcVideo;
+
+  vmScreen.innerHTML = "";
+
+  rtcVideo = document.createElement("video");
+  rtcVideo.id = "roomStream";
+  rtcVideo.autoplay = true;
+  rtcVideo.playsInline = true;
+  rtcVideo.muted = true;
+  rtcVideo.style.width = "100%";
+  rtcVideo.style.height = "100%";
+  rtcVideo.style.objectFit = "contain";
+  rtcVideo.style.background = "#111827";
+
+  vmScreen.appendChild(rtcVideo);
+  return rtcVideo;
+}
+
+function showVmWaiting(message = "等待 Room Agent 桌面串流") {
+  rtcVideo = null;
+  vmScreen.innerHTML = `
+    <div class="vm-empty">
+      <div class="monitor-icon">▣</div>
+      <strong>${message}</strong>
+      <span>Agent 已上線後，系統會自動嘗試建立 WebRTC 連線。</span>
+    </div>
+  `;
 }
 
 function applyMode(mode, announce = false) {
@@ -70,6 +116,8 @@ function applyMode(mode, announce = false) {
 }
 
 async function loadUserContext(user) {
+  rtcUserId = user.id;
+
   const { data: p, error: profileError } = await supabaseClient
     .from("profiles")
     .select("id, display_name, role")
@@ -109,12 +157,23 @@ async function loadUserContext(user) {
   roomState = rs;
 }
 
+async function getAgentForRoom() {
+  const { data, error } = await supabaseClient
+    .from("room_agents")
+    .select("user_id, last_seen_at, is_online")
+    .eq("room_id", room.id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 async function refreshAgentStatus() {
   if (!room?.id) return;
 
   const { data, error } = await supabaseClient
     .from("room_agents")
-    .select("last_seen_at, is_online")
+    .select("user_id, last_seen_at, is_online")
     .eq("room_id", room.id)
     .maybeSingle();
 
@@ -130,6 +189,7 @@ async function refreshAgentStatus() {
     return;
   }
 
+  rtcAgentUserId = data.user_id;
   const ageMs = Date.now() - new Date(data.last_seen_at).getTime();
   const online = data.is_online === true && ageMs <= 60000;
 
@@ -137,12 +197,156 @@ async function refreshAgentStatus() {
     ? "● Room Agent 已連線"
     : "● Room Agent 離線";
   roomStatus.style.color = online ? "#16794b" : "#667085";
+
+  if (online && !rtcPeer) {
+    startWebRtcViewer().catch((err) => {
+      console.error("WebRTC start failed:", err);
+      showVmWaiting("桌面串流連線失敗");
+    });
+  }
 }
 
 function startAgentStatusMonitor() {
   if (agentStatusTimer) clearInterval(agentStatusTimer);
   refreshAgentStatus();
   agentStatusTimer = setInterval(refreshAgentStatus, 15000);
+}
+
+async function sendSignal(type, payload, targetUserId) {
+  const { error } = await supabaseClient.from("webrtc_signals").insert({
+    room_id: room.id,
+    sender_id: rtcUserId,
+    target_user_id: targetUserId,
+    peer_id: rtcPeerId,
+    signal_type: type,
+    payload
+  });
+
+  if (error) throw error;
+}
+
+async function handleViewerSignal(signal) {
+  if (!rtcPeer || signal.peer_id !== rtcPeerId) return;
+  if (signal.sender_id !== rtcAgentUserId) return;
+
+  if (signal.signal_type === "answer") {
+    await rtcPeer.setRemoteDescription(signal.payload);
+
+    for (const candidate of pendingRemoteIce) {
+      await rtcPeer.addIceCandidate(candidate);
+    }
+    pendingRemoteIce = [];
+  }
+
+  if (signal.signal_type === "ice") {
+    const candidate = new RTCIceCandidate(signal.payload);
+
+    if (rtcPeer.remoteDescription) {
+      await rtcPeer.addIceCandidate(candidate);
+    } else {
+      pendingRemoteIce.push(candidate);
+    }
+  }
+
+  if (signal.signal_type === "bye") {
+    closeWebRtcViewer();
+    showVmWaiting("Room Agent 已結束桌面串流");
+  }
+}
+
+async function subscribeViewerSignals() {
+  if (rtcSignalChannel) {
+    await supabaseClient.removeChannel(rtcSignalChannel);
+  }
+
+  rtcSignalChannel = supabaseClient
+    .channel(`webrtc-viewer-${rtcUserId}-${rtcPeerId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "webrtc_signals"
+      },
+      (payload) => {
+        const signal = payload.new;
+        if (signal.target_user_id !== rtcUserId) return;
+        handleViewerSignal(signal).catch(console.error);
+      }
+    )
+    .subscribe();
+}
+
+async function startWebRtcViewer() {
+  if (!room?.id || !rtcUserId || rtcPeer) return;
+
+  const agent = await getAgentForRoom();
+  if (!agent?.user_id) return;
+
+  rtcAgentUserId = agent.user_id;
+  rtcPeerId = crypto.randomUUID();
+  pendingRemoteIce = [];
+
+  rtcPeer = new RTCPeerConnection(RTC_CONFIG);
+  rtcPeer.addTransceiver("video", { direction: "recvonly" });
+
+  rtcPeer.ontrack = (event) => {
+    const video = ensureVmVideo();
+    if (event.streams?.[0]) {
+      video.srcObject = event.streams[0];
+    } else {
+      const stream = new MediaStream([event.track]);
+      video.srcObject = stream;
+    }
+    video.play().catch(() => {});
+  };
+
+  rtcPeer.onicecandidate = (event) => {
+    if (!event.candidate) return;
+    sendSignal("ice", event.candidate.toJSON(), rtcAgentUserId).catch(console.error);
+  };
+
+  rtcPeer.onconnectionstatechange = () => {
+    const state = rtcPeer?.connectionState;
+    console.log("WebRTC viewer state:", state);
+
+    if (state === "connected") {
+      showToast("Room1 桌面串流已連線");
+    }
+
+    if (state === "failed" || state === "closed") {
+      closeWebRtcViewer();
+      showVmWaiting("桌面串流已中斷");
+    }
+  };
+
+  await subscribeViewerSignals();
+
+  const offer = await rtcPeer.createOffer();
+  await rtcPeer.setLocalDescription(offer);
+
+  await sendSignal(
+    "offer",
+    {
+      type: rtcPeer.localDescription.type,
+      sdp: rtcPeer.localDescription.sdp
+    },
+    rtcAgentUserId
+  );
+}
+
+function closeWebRtcViewer() {
+  if (rtcPeer) {
+    try { rtcPeer.close(); } catch {}
+  }
+  rtcPeer = null;
+  rtcPeerId = null;
+  pendingRemoteIce = [];
+
+  if (rtcSignalChannel) {
+    supabaseClient.removeChannel(rtcSignalChannel);
+    rtcSignalChannel = null;
+  }
 }
 
 async function enterClassroom(session) {
@@ -169,6 +373,7 @@ async function enterClassroom(session) {
   }
 
   applyMode(roomState.control_mode, false);
+  showVmWaiting();
   subscribeRoomState();
   startAgentStatusMonitor();
 }
@@ -243,6 +448,7 @@ document.addEventListener("click", (event) => {
 
 document.querySelector("#logoutBtn").addEventListener("click", async () => {
   if (agentStatusTimer) clearInterval(agentStatusTimer);
+  closeWebRtcViewer();
   await supabaseClient.auth.signOut();
   location.reload();
 });
