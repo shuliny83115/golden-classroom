@@ -118,6 +118,7 @@ function ensureVmVideo() {
   rtcVideo.style.height = "100%";
   rtcVideo.style.objectFit = "contain";
   rtcVideo.style.background = "#111827";
+  rtcVideo.style.cursor = "none";
 
   vmScreen.appendChild(rtcVideo);
 
