@@ -1,1 +1,263 @@
-const cfg=window.GOLDEN_CLASSROOM_CONFIG;const supabaseClient=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);const loginView=document.querySelector('#loginView'),classroomView=document.querySelector('#classroomView'),loginForm=document.querySelector('#loginForm'),loginError=document.querySelector('#loginError'),userBadge=document.querySelector('#userBadge'),roomNameEl=document.querySelector('#roomName'),roomStatus=document.querySelector('#roomStatus'),modePill=document.querySelector('#modePill'),controlWrap=document.querySelector('#controlWrap'),controlBtn=document.querySelector('#controlBtn'),controlMenu=document.querySelector('#controlMenu'),controlLabel=document.querySelector('#controlLabel'),studentHint=document.querySelector('#studentHint'),toast=document.querySelector('#toast');let profile=null,room=null,roomState=null,roomStateChannel=null,toastTimer=null;const modeText={teacher:'老師控制',student:'學生控制',shared:'雙人控制'};function accountToEmail(v){v=v.trim();return v.includes('@')?v:`${v}@goldenclassroom.test`}function showToast(t){toast.textContent=t;toast.classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.add('hidden'),1600)}function applyMode(mode,announce=false){if(!roomState)roomState={};roomState.control_mode=mode;const label=modeText[mode]||mode;modePill.textContent=label;controlLabel.textContent=label;if(profile?.role==='student'){const can=mode==='student'||mode==='shared';studentHint.textContent=can?`目前控制模式：${label}，您可以操作`:`目前控制模式：${label}，您目前只能觀看`}if(announce){const can=mode==='shared'||(mode==='teacher'&&profile?.role==='teacher')||(mode==='student'&&profile?.role==='student');showToast(can?`已切換為【${label}】，您現在可以操作`:`已切換為【${label}】，您目前無法操作`)}}async function loadUserContext(user){let r=await supabaseClient.from('profiles').select('id,display_name,role').eq('id',user.id).single();if(r.error)throw r.error;profile=r.data;r=await supabaseClient.from('room_members').select('room_id').eq('user_id',user.id).limit(1);if(r.error)throw r.error;if(!r.data?.length)throw new Error('此帳號尚未分配教室');const roomId=r.data[0].room_id;r=await supabaseClient.from('rooms').select('id,room_code,room_name,is_online').eq('id',roomId).single();if(r.error)throw r.error;room=r.data;r=await supabaseClient.from('room_state').select('room_id,control_mode,updated_at').eq('room_id',roomId).single();if(r.error)throw r.error;roomState=r.data}async function enterClassroom(session){try{await loadUserContext(session.user)}catch(err){await supabaseClient.auth.signOut();loginError.textContent=`登入成功，但讀取教室資料失敗：${err.message}`;return}loginView.classList.add('hidden');classroomView.classList.remove('hidden');userBadge.textContent=`${profile.display_name}｜${profile.role==='teacher'?'老師':'學生'}｜${room.room_code}`;roomNameEl.textContent=room.room_name;roomStatus.textContent=room.is_online?'● Room 在線':'● Room 尚未連接 Agent';roomStatus.style.color=room.is_online?'#16794b':'#667085';if(profile.role!=='teacher')controlWrap.classList.add('hidden');else controlWrap.classList.remove('hidden');applyMode(roomState.control_mode,false);subscribeRoomState()}function subscribeRoomState(){if(roomStateChannel)supabaseClient.removeChannel(roomStateChannel);roomStateChannel=supabaseClient.channel(`room-state-${room.id}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'room_state',filter:`room_id=eq.${room.id}`},payload=>applyMode(payload.new.control_mode,true)).subscribe()}loginForm.addEventListener('submit',async e=>{e.preventDefault();loginError.textContent='';const account=document.querySelector('#account').value,password=document.querySelector('#password').value;const {data,error}=await supabaseClient.auth.signInWithPassword({email:accountToEmail(account),password});if(error){loginError.textContent='帳號或密碼錯誤';return}await enterClassroom(data.session)});controlBtn.addEventListener('click',()=>controlMenu.classList.toggle('hidden'));controlMenu.addEventListener('click',async e=>{const b=e.target.closest('[data-mode]');if(!b||profile?.role!=='teacher')return;const mode=b.dataset.mode;controlMenu.classList.add('hidden');const {error}=await supabaseClient.from('room_state').update({control_mode:mode,updated_at:new Date().toISOString()}).eq('room_id',room.id);if(error)showToast(`切換失敗：${error.message}`)});document.addEventListener('click',e=>{if(!controlWrap.contains(e.target))controlMenu.classList.add('hidden')});document.querySelector('#logoutBtn').addEventListener('click',async()=>{await supabaseClient.auth.signOut();location.reload()});(async()=>{if(!cfg.SUPABASE_URL||cfg.SUPABASE_URL.includes('YOUR_PROJECT')||!cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_ANON_KEY.includes('YOUR_SUPABASE')){loginError.textContent='尚未設定 Supabase URL / Anon Key';return}const {data}=await supabaseClient.auth.getSession();if(data.session)await enterClassroom(data.session)})();
+const cfg = window.GOLDEN_CLASSROOM_CONFIG;
+const supabaseClient = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+
+const loginView = document.querySelector("#loginView");
+const classroomView = document.querySelector("#classroomView");
+const loginForm = document.querySelector("#loginForm");
+const loginError = document.querySelector("#loginError");
+const userBadge = document.querySelector("#userBadge");
+const roomNameEl = document.querySelector("#roomName");
+const roomStatus = document.querySelector("#roomStatus");
+const modePill = document.querySelector("#modePill");
+const controlWrap = document.querySelector("#controlWrap");
+const controlBtn = document.querySelector("#controlBtn");
+const controlMenu = document.querySelector("#controlMenu");
+const controlLabel = document.querySelector("#controlLabel");
+const studentHint = document.querySelector("#studentHint");
+const toast = document.querySelector("#toast");
+
+let profile = null;
+let room = null;
+let roomState = null;
+let roomStateChannel = null;
+let agentStatusTimer = null;
+let toastTimer = null;
+
+const modeText = {
+  teacher: "老師控制",
+  student: "學生控制",
+  shared: "雙人控制"
+};
+
+function accountToEmail(value) {
+  const v = value.trim();
+  return v.includes("@") ? v : `${v}@goldenclassroom.test`;
+}
+
+function showToast(text) {
+  toast.textContent = text;
+  toast.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 1600);
+}
+
+function applyMode(mode, announce = false) {
+  if (!roomState) roomState = {};
+  roomState.control_mode = mode;
+  const label = modeText[mode] || mode;
+  modePill.textContent = label;
+  controlLabel.textContent = label;
+
+  if (profile?.role === "student") {
+    const canControl = mode === "student" || mode === "shared";
+    studentHint.textContent = canControl
+      ? `目前控制模式：${label}，您可以操作`
+      : `目前控制模式：${label}，您目前只能觀看`;
+  }
+
+  if (announce) {
+    const canControl =
+      mode === "shared" ||
+      (mode === "teacher" && profile?.role === "teacher") ||
+      (mode === "student" && profile?.role === "student");
+
+    showToast(
+      canControl
+        ? `已切換為【${label}】，您現在可以操作`
+        : `已切換為【${label}】，您目前無法操作`
+    );
+  }
+}
+
+async function loadUserContext(user) {
+  const { data: p, error: profileError } = await supabaseClient
+    .from("profiles")
+    .select("id, display_name, role")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) throw profileError;
+  profile = p;
+
+  const { data: memberships, error: memberError } = await supabaseClient
+    .from("room_members")
+    .select("room_id")
+    .eq("user_id", user.id)
+    .limit(1);
+
+  if (memberError) throw memberError;
+  if (!memberships?.length) throw new Error("此帳號尚未分配教室");
+
+  const roomId = memberships[0].room_id;
+
+  const { data: r, error: roomError } = await supabaseClient
+    .from("rooms")
+    .select("id, room_code, room_name")
+    .eq("id", roomId)
+    .single();
+
+  if (roomError) throw roomError;
+  room = r;
+
+  const { data: rs, error: stateError } = await supabaseClient
+    .from("room_state")
+    .select("room_id, control_mode, updated_at")
+    .eq("room_id", roomId)
+    .single();
+
+  if (stateError) throw stateError;
+  roomState = rs;
+}
+
+async function refreshAgentStatus() {
+  if (!room?.id) return;
+
+  const { data, error } = await supabaseClient
+    .from("room_agents")
+    .select("last_seen_at, is_online")
+    .eq("room_id", room.id)
+    .maybeSingle();
+
+  if (error) {
+    roomStatus.textContent = "● Room Agent 狀態讀取失敗";
+    roomStatus.style.color = "#b42318";
+    return;
+  }
+
+  if (!data?.last_seen_at) {
+    roomStatus.textContent = "● Room Agent 離線";
+    roomStatus.style.color = "#667085";
+    return;
+  }
+
+  const ageMs = Date.now() - new Date(data.last_seen_at).getTime();
+  const online = data.is_online === true && ageMs <= 60000;
+
+  roomStatus.textContent = online
+    ? "● Room Agent 已連線"
+    : "● Room Agent 離線";
+  roomStatus.style.color = online ? "#16794b" : "#667085";
+}
+
+function startAgentStatusMonitor() {
+  if (agentStatusTimer) clearInterval(agentStatusTimer);
+  refreshAgentStatus();
+  agentStatusTimer = setInterval(refreshAgentStatus, 15000);
+}
+
+async function enterClassroom(session) {
+  try {
+    await loadUserContext(session.user);
+  } catch (err) {
+    await supabaseClient.auth.signOut();
+    loginError.textContent = `登入成功，但讀取教室資料失敗：${err.message}`;
+    return;
+  }
+
+  loginView.classList.add("hidden");
+  classroomView.classList.remove("hidden");
+
+  userBadge.textContent =
+    `${profile.display_name}｜${profile.role === "teacher" ? "老師" : "學生"}｜${room.room_code}`;
+
+  roomNameEl.textContent = room.room_name;
+
+  if (profile.role !== "teacher") {
+    controlWrap.classList.add("hidden");
+  } else {
+    controlWrap.classList.remove("hidden");
+  }
+
+  applyMode(roomState.control_mode, false);
+  subscribeRoomState();
+  startAgentStatusMonitor();
+}
+
+function subscribeRoomState() {
+  if (roomStateChannel) supabaseClient.removeChannel(roomStateChannel);
+
+  roomStateChannel = supabaseClient
+    .channel(`room-state-${room.id}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "room_state",
+        filter: `room_id=eq.${room.id}`
+      },
+      (payload) => {
+        applyMode(payload.new.control_mode, true);
+      }
+    )
+    .subscribe();
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  loginError.textContent = "";
+
+  const account = document.querySelector("#account").value;
+  const password = document.querySelector("#password").value;
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: accountToEmail(account),
+    password
+  });
+
+  if (error) {
+    loginError.textContent = "帳號或密碼錯誤";
+    return;
+  }
+
+  await enterClassroom(data.session);
+});
+
+controlBtn.addEventListener("click", () => {
+  controlMenu.classList.toggle("hidden");
+});
+
+controlMenu.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-mode]");
+  if (!button || profile?.role !== "teacher") return;
+
+  const mode = button.dataset.mode;
+  controlMenu.classList.add("hidden");
+
+  const { error } = await supabaseClient
+    .from("room_state")
+    .update({
+      control_mode: mode,
+      updated_at: new Date().toISOString()
+    })
+    .eq("room_id", room.id);
+
+  if (error) showToast(`切換失敗：${error.message}`);
+});
+
+document.addEventListener("click", (event) => {
+  if (!controlWrap.contains(event.target)) {
+    controlMenu.classList.add("hidden");
+  }
+});
+
+document.querySelector("#logoutBtn").addEventListener("click", async () => {
+  if (agentStatusTimer) clearInterval(agentStatusTimer);
+  await supabaseClient.auth.signOut();
+  location.reload();
+});
+
+(async () => {
+  if (
+    !cfg.SUPABASE_URL ||
+    cfg.SUPABASE_URL.includes("YOUR_PROJECT") ||
+    !cfg.SUPABASE_ANON_KEY ||
+    cfg.SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")
+  ) {
+    loginError.textContent = "尚未設定 Supabase URL / Publishable Key";
+    return;
+  }
+
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session) await enterClassroom(data.session);
+})();
