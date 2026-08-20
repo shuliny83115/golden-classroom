@@ -24,6 +24,10 @@ let roomStateChannel = null;
 let agentStatusTimer = null;
 let toastTimer = null;
 
+// WebRTC 遠端控制
+let rtcControlChannel = null;
+let lastMouseSend = 0;
+
 let rtcPeer = null;
 let rtcSignalChannel = null;
 let rtcPeerId = null;
@@ -97,6 +101,71 @@ function ensureVmVideo() {
   rtcVideo.style.background = "#111827";
 
   vmScreen.appendChild(rtcVideo);
+  rtcVideo.addEventListener("mousemove", (event) => {
+  if (!rtcControlChannel || rtcControlChannel.readyState !== "open") return;
+
+  // 第一階段只允許老師在「老師控制 / 雙人控制」時送控制
+  const canControl =
+    profile?.role === "teacher" &&
+    (roomState?.control_mode === "teacher" ||
+     roomState?.control_mode === "shared");
+
+  if (!canControl) return;
+
+  // 約 30 FPS，避免滑鼠事件塞爆 DataChannel
+  const now = performance.now();
+  if (now - lastMouseSend < 33) return;
+  lastMouseSend = now;
+
+  const rect = rtcVideo.getBoundingClientRect();
+
+  // 計算 object-fit: contain 實際影像範圍，避免黑邊造成座標錯位
+  const videoRatio =
+    rtcVideo.videoWidth && rtcVideo.videoHeight
+      ? rtcVideo.videoWidth / rtcVideo.videoHeight
+      : rect.width / rect.height;
+
+  const boxRatio = rect.width / rect.height;
+
+  let drawWidth;
+  let drawHeight;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (videoRatio > boxRatio) {
+    drawWidth = rect.width;
+    drawHeight = rect.width / videoRatio;
+    offsetY = (rect.height - drawHeight) / 2;
+  } else {
+    drawHeight = rect.height;
+    drawWidth = rect.height * videoRatio;
+    offsetX = (rect.width - drawWidth) / 2;
+  }
+
+  const px = event.clientX - rect.left - offsetX;
+  const py = event.clientY - rect.top - offsetY;
+
+  // 滑鼠在黑邊區域時不送出控制
+  if (
+    px < 0 ||
+    py < 0 ||
+    px > drawWidth ||
+    py > drawHeight
+  ) {
+    return;
+  }
+
+  const x = px / drawWidth;
+  const y = py / drawHeight;
+
+  rtcControlChannel.send(
+    JSON.stringify({
+      type: "mouse_move",
+      x,
+      y
+    })
+  );
+});
   return rtcVideo;
 }
 
@@ -315,6 +384,20 @@ async function startWebRtcViewer() {
     await loadRtcConfig();
   }
   rtcPeer = new RTCPeerConnection(RTC_CONFIG);
+  rtcControlChannel = rtcPeer.createDataChannel("control");
+
+rtcControlChannel.onopen = () => {
+  console.log("CONTROL DATA CHANNEL OPEN");
+  showToast("遠端控制通道已連線");
+};
+
+rtcControlChannel.onclose = () => {
+  console.log("CONTROL DATA CHANNEL CLOSED");
+};
+
+rtcControlChannel.onerror = (err) => {
+  console.error("CONTROL DATA CHANNEL ERROR", err);
+};
   rtcPeer.addTransceiver("video", { direction: "recvonly" });
 
   rtcPeer.ontrack = (event) => {
