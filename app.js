@@ -187,7 +187,7 @@ function ensureVmVideo() {
     if (!canControl) return;
 
     const now = performance.now();
-    if (now - lastMouseSend < 33) return;
+    if (now - lastMouseSend < 8) return;
     lastMouseSend = now;
 
     const rect = rtcVideo.getBoundingClientRect();
@@ -456,7 +456,10 @@ async function startWebRtcViewer() {
     await loadRtcConfig();
   }
   rtcPeer = new RTCPeerConnection(RTC_CONFIG);
-  rtcControlChannel = rtcPeer.createDataChannel("control");
+  rtcControlChannel = rtcPeer.createDataChannel("control", {
+    ordered: false,
+    maxRetransmits: 0
+  });
 
 rtcControlChannel.onopen = () => {
   console.log("CONTROL DATA CHANNEL OPEN");
