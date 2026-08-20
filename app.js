@@ -24,6 +24,10 @@ let roomStateChannel = null;
 let agentStatusTimer = null;
 let toastTimer = null;
 
+let controlPingTimer = null;
+let controlPingId = 0;
+const controlPingTimes = new Map();
+
 // WebRTC 遠端控制
 let rtcControlChannel = null;
 let lastMouseSend = 0;
@@ -465,6 +469,46 @@ async function startWebRtcViewer() {
 rtcControlChannel.onopen = () => {
   console.log("CONTROL DATA CHANNEL OPEN");
   showToast("遠端控制通道已連線");
+
+  if (controlPingTimer) {
+    clearInterval(controlPingTimer);
+  }
+
+  controlPingTimer = setInterval(() => {
+    if (rtcControlChannel.readyState !== "open") return;
+
+    const id = ++controlPingId;
+
+    controlPingTimes.set(id, performance.now());
+
+    rtcControlChannel.send(
+      JSON.stringify({
+        type: "control_ping",
+        id
+      })
+    );
+  }, 1000);
+};
+  rtcControlChannel.onmessage = (event) => {
+  try {
+    const msg = JSON.parse(event.data);
+
+    if (msg.type === "control_pong") {
+      const start = controlPingTimes.get(msg.id);
+
+      if (start !== undefined) {
+        const rtt = performance.now() - start;
+
+        console.log(
+          `CONTROL RTT: ${rtt.toFixed(1)} ms`
+        );
+
+        controlPingTimes.delete(msg.id);
+      }
+    }
+  } catch (err) {
+    console.error("CONTROL MESSAGE ERROR", err);
+  }
 };
 
 rtcControlChannel.onclose = () => {
