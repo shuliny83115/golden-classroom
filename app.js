@@ -30,6 +30,7 @@ const controlPingTimes = new Map();
 
 // WebRTC 遠端控制
 let rtcControlChannel = null;
+let rtcMouseChannel = null;
 let lastMouseSend = 0;
 function canRemoteControl() {
   return (
@@ -190,6 +191,9 @@ function ensureVmVideo() {
         roomState?.control_mode === "shared");
 
     if (!canControl) return;
+    if (rtcControlChannel.bufferedAmount > 0) {
+  return;
+}
 
     const now = performance.now();
     if (now - lastMouseSend < 8) return;
