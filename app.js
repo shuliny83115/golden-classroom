@@ -38,12 +38,36 @@ const modeText = {
   shared: "雙人控制"
 };
 
-const RTC_CONFIG = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" }
-  ]
-};
+let RTC_CONFIG = null;
+
+async function loadRtcConfig() {
+  const { data, error } = await supabaseClient.functions.invoke(
+    "turn-credentials"
+  );
+
+  if (error) {
+    throw new Error(`取得 TURN credentials 失敗：${error.message}`);
+  }
+
+  let turnServers = data?.iceServers;
+
+  if (!Array.isArray(turnServers)) {
+    turnServers = [turnServers];
+  }
+
+  RTC_CONFIG = {
+    iceServers: [
+      {
+        urls: "stun:stun.cloudflare.com:3478"
+      },
+      ...turnServers
+    ],
+    iceCandidatePoolSize: 4
+  };
+
+  console.log("TURN READY", RTC_CONFIG);
+  return RTC_CONFIG;
+}
 
 function accountToEmail(value) {
   const v = value.trim();
@@ -287,6 +311,9 @@ async function startWebRtcViewer() {
   rtcPeerId = crypto.randomUUID();
   pendingRemoteIce = [];
 
+  if (!RTC_CONFIG) {
+    await loadRtcConfig();
+  }
   rtcPeer = new RTCPeerConnection(RTC_CONFIG);
   rtcPeer.addTransceiver("video", { direction: "recvonly" });
 
