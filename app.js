@@ -27,6 +27,74 @@ let toastTimer = null;
 // WebRTC 遠端控制
 let rtcControlChannel = null;
 let lastMouseSend = 0;
+function canRemoteControl() {
+  return (
+    profile?.role === "teacher" &&
+    (roomState?.control_mode === "teacher" ||
+      roomState?.control_mode === "shared")
+  );
+}
+
+function sendControlMessage(message) {
+  if (
+    !rtcControlChannel ||
+    rtcControlChannel.readyState !== "open" ||
+    !canRemoteControl()
+  ) {
+    return;
+  }
+
+  rtcControlChannel.send(JSON.stringify(message));
+}
+
+// 防止操作遠端桌面時跳出瀏覽器右鍵選單
+rtcVideo.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
+
+// 左鍵 / 右鍵按下
+rtcVideo.addEventListener("mousedown", (event) => {
+  event.preventDefault();
+
+  sendControlMessage({
+    type: "mouse_down",
+    button:
+      event.button === 2
+        ? "right"
+        : event.button === 1
+        ? "middle"
+        : "left"
+  });
+});
+
+// 左鍵 / 右鍵放開
+rtcVideo.addEventListener("mouseup", (event) => {
+  event.preventDefault();
+
+  sendControlMessage({
+    type: "mouse_up",
+    button:
+      event.button === 2
+        ? "right"
+        : event.button === 1
+        ? "middle"
+        : "left"
+  });
+});
+
+// 滾輪
+rtcVideo.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+
+    sendControlMessage({
+      type: "mouse_scroll",
+      deltaY: event.deltaY
+    });
+  },
+  { passive: false }
+);
 
 let rtcPeer = null;
 let rtcSignalChannel = null;
