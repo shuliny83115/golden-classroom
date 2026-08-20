@@ -47,55 +47,6 @@ function sendControlMessage(message) {
   rtcControlChannel.send(JSON.stringify(message));
 }
 
-// 防止操作遠端桌面時跳出瀏覽器右鍵選單
-rtcVideo.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-});
-
-// 左鍵 / 右鍵按下
-rtcVideo.addEventListener("mousedown", (event) => {
-  event.preventDefault();
-
-  sendControlMessage({
-    type: "mouse_down",
-    button:
-      event.button === 2
-        ? "right"
-        : event.button === 1
-        ? "middle"
-        : "left"
-  });
-});
-
-// 左鍵 / 右鍵放開
-rtcVideo.addEventListener("mouseup", (event) => {
-  event.preventDefault();
-
-  sendControlMessage({
-    type: "mouse_up",
-    button:
-      event.button === 2
-        ? "right"
-        : event.button === 1
-        ? "middle"
-        : "left"
-  });
-});
-
-// 滾輪
-rtcVideo.addEventListener(
-  "wheel",
-  (event) => {
-    event.preventDefault();
-
-    sendControlMessage({
-      type: "mouse_scroll",
-      deltaY: event.deltaY
-    });
-  },
-  { passive: false }
-);
-
 let rtcPeer = null;
 let rtcSignalChannel = null;
 let rtcPeerId = null;
@@ -169,71 +120,124 @@ function ensureVmVideo() {
   rtcVideo.style.background = "#111827";
 
   vmScreen.appendChild(rtcVideo);
-  rtcVideo.addEventListener("mousemove", (event) => {
-  if (!rtcControlChannel || rtcControlChannel.readyState !== "open") return;
 
-  // 第一階段只允許老師在「老師控制 / 雙人控制」時送控制
-  const canControl =
-    profile?.role === "teacher" &&
-    (roomState?.control_mode === "teacher" ||
-     roomState?.control_mode === "shared");
+  // 防止操作遠端桌面時跳出瀏覽器右鍵選單
+  rtcVideo.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
 
-  if (!canControl) return;
+  // 左鍵 / 右鍵按下
+  rtcVideo.addEventListener("mousedown", (event) => {
+    event.preventDefault();
 
-  // 約 30 FPS，避免滑鼠事件塞爆 DataChannel
-  const now = performance.now();
-  if (now - lastMouseSend < 33) return;
-  lastMouseSend = now;
+    sendControlMessage({
+      type: "mouse_down",
+      button:
+        event.button === 2
+          ? "right"
+          : event.button === 1
+          ? "middle"
+          : "left"
+    });
+  });
 
-  const rect = rtcVideo.getBoundingClientRect();
+  // 左鍵 / 右鍵放開
+  rtcVideo.addEventListener("mouseup", (event) => {
+    event.preventDefault();
 
-  // 計算 object-fit: contain 實際影像範圍，避免黑邊造成座標錯位
-  const videoRatio =
-    rtcVideo.videoWidth && rtcVideo.videoHeight
-      ? rtcVideo.videoWidth / rtcVideo.videoHeight
-      : rect.width / rect.height;
+    sendControlMessage({
+      type: "mouse_up",
+      button:
+        event.button === 2
+          ? "right"
+          : event.button === 1
+          ? "middle"
+          : "left"
+    });
+  });
 
-  const boxRatio = rect.width / rect.height;
+  // 滾輪
+  rtcVideo.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
 
-  let drawWidth;
-  let drawHeight;
-  let offsetX = 0;
-  let offsetY = 0;
-
-  if (videoRatio > boxRatio) {
-    drawWidth = rect.width;
-    drawHeight = rect.width / videoRatio;
-    offsetY = (rect.height - drawHeight) / 2;
-  } else {
-    drawHeight = rect.height;
-    drawWidth = rect.height * videoRatio;
-    offsetX = (rect.width - drawWidth) / 2;
-  }
-
-  const px = event.clientX - rect.left - offsetX;
-  const py = event.clientY - rect.top - offsetY;
-
-  // 滑鼠在黑邊區域時不送出控制
-  if (
-    px < 0 ||
-    py < 0 ||
-    px > drawWidth ||
-    py > drawHeight
-  ) {
-    return;
-  }
-
-  const x = px / drawWidth;
-  const y = py / drawHeight;
-
-  rtcControlChannel.send(
-    JSON.stringify({
-      type: "mouse_move",
-      x,
-      y
-    })
+      sendControlMessage({
+        type: "mouse_scroll",
+        deltaY: event.deltaY
+      });
+    },
+    { passive: false }
   );
-});
+
+  // 滑鼠移動
+  rtcVideo.addEventListener("mousemove", (event) => {
+    if (
+      !rtcControlChannel ||
+      rtcControlChannel.readyState !== "open"
+    ) {
+      return;
+    }
+
+    const canControl =
+      profile?.role === "teacher" &&
+      (roomState?.control_mode === "teacher" ||
+        roomState?.control_mode === "shared");
+
+    if (!canControl) return;
+
+    const now = performance.now();
+    if (now - lastMouseSend < 33) return;
+    lastMouseSend = now;
+
+    const rect = rtcVideo.getBoundingClientRect();
+
+    const videoRatio =
+      rtcVideo.videoWidth && rtcVideo.videoHeight
+        ? rtcVideo.videoWidth / rtcVideo.videoHeight
+        : rect.width / rect.height;
+
+    const boxRatio = rect.width / rect.height;
+
+    let drawWidth;
+    let drawHeight;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (videoRatio > boxRatio) {
+      drawWidth = rect.width;
+      drawHeight = rect.width / videoRatio;
+      offsetY = (rect.height - drawHeight) / 2;
+    } else {
+      drawHeight = rect.height;
+      drawWidth = rect.height * videoRatio;
+      offsetX = (rect.width - drawWidth) / 2;
+    }
+
+    const px = event.clientX - rect.left - offsetX;
+    const py = event.clientY - rect.top - offsetY;
+
+    if (
+      px < 0 ||
+      py < 0 ||
+      px > drawWidth ||
+      py > drawHeight
+    ) {
+      return;
+    }
+
+    const x = px / drawWidth;
+    const y = py / drawHeight;
+
+    rtcControlChannel.send(
+      JSON.stringify({
+        type: "mouse_move",
+        x,
+        y
+      })
+    );
+  });
+
   return rtcVideo;
 }
 
