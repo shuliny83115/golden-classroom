@@ -53,6 +53,29 @@ vmZoomIn.addEventListener("click", () => {
   vmZoom += 10;
   applyVmZoom();
 });
+vmFitBtn.addEventListener("click", () => {
+  const panel = vmScreen.closest(".vm-panel");
+  if (!panel) return;
+
+  const panelRect = panel.getBoundingClientRect();
+
+  // 預留上方標題列、下方工具列與一些安全空間
+  const availableHeight = window.innerHeight - panelRect.top - 90;
+  const availableWidth = panelRect.width;
+
+  // Room1 目前以 16:9 顯示
+  const widthBasedScale = availableWidth / 1280;
+  const heightBasedScale = availableHeight / 720;
+
+  const fitScale = Math.min(widthBasedScale, heightBasedScale);
+
+  vmZoom = Math.round(fitScale * 100);
+
+  // 限制在我們原本允許的範圍
+  vmZoom = Math.max(40, Math.min(150, vmZoom));
+
+  applyVmZoom();
+});
 applyVmZoom();
 let roomStateChannel = null;
 let agentStatusTimer = null;
