@@ -188,31 +188,6 @@ function ensureVmVideo() {
 
   vmScreen.appendChild(rtcVideo);
 
-  // 本地即時游標
-  const localCursor = document.createElement("div");
-  localCursor.style.position = "absolute";
-  localCursor.style.left = "0";
-  localCursor.style.top = "0";
-  localCursor.style.width = "20px";
-  localCursor.style.height = "28px";
-  localCursor.style.pointerEvents = "none";
-  localCursor.style.zIndex = "9999";
-  localCursor.style.display = "none";
-  localCursor.style.transform = "translate(0, 0)";
-
-  localCursor.innerHTML = `
-    <svg width="20" height="28" viewBox="0 0 20 28">
-      <path
-        d="M2 1 L2 21 L7 16 L11 25 L15 23 L11 15 L18 15 Z"
-        fill="white"
-        stroke="black"
-        stroke-width="1.5"
-      />
-    </svg>
-  `;
-
-  vmScreen.appendChild(localCursor);
-
   // 防止右鍵叫出瀏覽器選單
   rtcVideo.addEventListener("contextmenu", (event) => {
     event.preventDefault();
@@ -262,27 +237,9 @@ function ensureVmVideo() {
     { passive: false }
   );
 
-  // 滑入遠端畫面時顯示本地游標
-  rtcVideo.addEventListener("mouseenter", () => {
-    localCursor.style.display = "block";
-  });
-
-  // 滑出遠端畫面時隱藏本地游標
-  rtcVideo.addEventListener("mouseleave", () => {
-    localCursor.style.display = "none";
-  });
-
   // 滑鼠移動
   rtcVideo.addEventListener("mousemove", (event) => {
     const rect = rtcVideo.getBoundingClientRect();
-    const wrapRect = vmScreen.getBoundingClientRect();
-
-    // 先讓本地游標立即跟著 Mac 滑鼠走
-    localCursor.style.display = "block";
-    localCursor.style.left =
-      `${event.clientX - wrapRect.left}px`;
-    localCursor.style.top =
-      `${event.clientY - wrapRect.top}px`;
 
     if (
       !rtcControlChannel ||
