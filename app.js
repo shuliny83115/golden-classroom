@@ -16,10 +16,38 @@ const controlLabel = document.querySelector("#controlLabel");
 const studentHint = document.querySelector("#studentHint");
 const toast = document.querySelector("#toast");
 const vmScreen = document.querySelector(".vm-screen");
+const vmZoomOut = document.querySelector("#vmZoomOut");
+const vmZoomIn = document.querySelector("#vmZoomIn");
+const vmZoomLabel = document.querySelector("#vmZoomLabel");
+const vmFitBtn = document.querySelector("#vmFitBtn");
 
 let profile = null;
 let room = null;
 let roomState = null;
+let vmZoom = Number(localStorage.getItem("goldenClassroomVmZoom")) || 100;
+function applyVmZoom() {
+  vmZoom = Math.max(40, Math.min(150, vmZoom));
+
+  vmZoomLabel.textContent = `${vmZoom}%`;
+
+  vmScreen.style.width = `${vmZoom}%`;
+
+  localStorage.setItem(
+    "goldenClassroomVmZoom",
+    String(vmZoom)
+  );
+}
+
+vmZoomOut.addEventListener("click", () => {
+  vmZoom -= 10;
+  applyVmZoom();
+});
+
+vmZoomIn.addEventListener("click", () => {
+  vmZoom += 10;
+  applyVmZoom();
+});
+applyVmZoom();
 let roomStateChannel = null;
 let agentStatusTimer = null;
 let toastTimer = null;
