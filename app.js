@@ -28,9 +28,15 @@ let vmZoom = Number(localStorage.getItem("goldenClassroomVmZoom")) || 100;
 function applyVmZoom() {
   vmZoom = Math.max(40, Math.min(150, vmZoom));
 
+  const scale = vmZoom / 100;
+
   vmZoomLabel.textContent = `${vmZoom}%`;
 
-  vmScreen.style.width = `${vmZoom}%`;
+  vmScreen.style.width = `${scale * 100}%`;
+
+  // Room1 是 16:9 畫面，寬度改變時高度一起等比例改變
+  vmScreen.style.aspectRatio = "16 / 9";
+  vmScreen.style.height = "auto";
 
   localStorage.setItem(
     "goldenClassroomVmZoom",
