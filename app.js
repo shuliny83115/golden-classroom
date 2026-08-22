@@ -548,6 +548,9 @@ rtcControlChannel.onopen = () => {
 rtcControlChannel.onmessage = (event) => {
   try {
     const msg = JSON.parse(event.data);
+    if (msg.type === "mouse_move_ack") {
+  console.log("RAW ACK RECEIVED:", msg.moveId);
+}
 
     // RobotJS 真正執行 mouse_move 後回傳的 ACK
     if (msg.type === "mouse_move_ack") {
