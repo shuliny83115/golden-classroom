@@ -67,3 +67,7 @@
   margin-left: auto;
   flex-shrink: 0;
 }
+.vm-screen {
+  margin-left: auto;
+  margin-right: auto;
+}
