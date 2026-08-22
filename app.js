@@ -545,23 +545,27 @@ rtcControlChannel.onopen = () => {
     );
   }, 1000);
 };
-  rtcControlChannel.onmessage = (event) => {
+rtcControlChannel.onmessage = (event) => {
   try {
     const msg = JSON.parse(event.data);
 
+    // RobotJS 真正執行 mouse_move 後回傳的 ACK
+    if (msg.type === "mouse_move_ack") {
+      const start = moveTimes.get(msg.moveId);
+
+      if (start !== undefined) {
+        console.log(
+          `ROBOT RTT: ${(performance.now() - start).toFixed(1)} ms`
+        );
+
+        moveTimes.delete(msg.moveId);
+      }
+
+      return;
+    }
+
+    // WebRTC Control DataChannel Ping / Pong
     if (msg.type === "control_pong") {
-      if (msg.type === "mouse_move_ack") {
-  const start = moveTimes.get(msg.moveId);
-
-  if (start != null) {
-    console.log(
-      `ROBOT RTT: ${(performance.now() - start).toFixed(1)} ms`
-    );
-    moveTimes.delete(msg.moveId);
-  }
-
-  return;
-}
       const start = controlPingTimes.get(msg.id);
 
       if (start !== undefined) {
@@ -573,7 +577,10 @@ rtcControlChannel.onopen = () => {
 
         controlPingTimes.delete(msg.id);
       }
+
+      return;
     }
+
   } catch (err) {
     console.error("CONTROL MESSAGE ERROR", err);
   }
