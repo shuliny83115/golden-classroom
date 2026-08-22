@@ -59,19 +59,20 @@ vmFitBtn.addEventListener("click", () => {
 
   const panelRect = panel.getBoundingClientRect();
 
-  // 預留上方標題列、下方工具列與一些安全空間
-  const availableHeight = window.innerHeight - panelRect.top - 90;
+  // 多預留一點上方標題列、下方工具列與安全空間
+  const availableHeight = window.innerHeight - panelRect.top - 140;
   const availableWidth = panelRect.width;
 
-  // Room1 目前以 16:9 顯示
+  // Room1 以 16:9 計算
   const widthBasedScale = availableWidth / 1280;
   const heightBasedScale = availableHeight / 720;
 
   const fitScale = Math.min(widthBasedScale, heightBasedScale);
 
-  vmZoom = Math.round(fitScale * 100);
+  // 轉成百分比後，往下取到最接近的 10%
+  vmZoom = Math.floor((fitScale * 100) / 10) * 10;
 
-  // 限制在我們原本允許的範圍
+  // 限制範圍
   vmZoom = Math.max(40, Math.min(150, vmZoom));
 
   applyVmZoom();
