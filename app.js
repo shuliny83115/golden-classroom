@@ -185,6 +185,7 @@ function ensureVmVideo() {
   rtcVideo.style.objectFit = "contain";
   rtcVideo.style.background = "#111827";
   rtcVideo.style.cursor = "none";
+  rtcVideo.tabIndex = 0;
 
   vmScreen.appendChild(rtcVideo);
 
@@ -192,9 +193,32 @@ function ensureVmVideo() {
   rtcVideo.addEventListener("contextmenu", (event) => {
     event.preventDefault();
   });
+rtcVideo.addEventListener("keydown", (event) => {
+  if (!canRemoteControl()) return;
 
+  event.preventDefault();
+
+  sendControlMessage({
+    type: "key_down",
+    key: event.key,
+    code: event.code
+  });
+});
+
+rtcVideo.addEventListener("keyup", (event) => {
+  if (!canRemoteControl()) return;
+
+  event.preventDefault();
+
+  sendControlMessage({
+    type: "key_up",
+    key: event.key,
+    code: event.code
+  });
+});
   // 左鍵 / 右鍵按下
   rtcVideo.addEventListener("mousedown", (event) => {
+    rtcVideo.focus();
     event.preventDefault();
 
     sendControlMessage({
