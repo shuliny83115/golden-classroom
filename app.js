@@ -32,6 +32,8 @@ const controlPingTimes = new Map();
 let rtcControlChannel = null;
 let rtcMouseChannel = null;
 let lastMouseSend = 0;
+let moveId = 0;
+const moveTimes = new Map();
 function canRemoteControl() {
   return (
     profile?.role === "teacher" &&
@@ -284,13 +286,17 @@ function ensureVmVideo() {
     const x = px / drawWidth;
     const y = py / drawHeight;
 
-    rtcControlChannel.send(
-      JSON.stringify({
-        type: "mouse_move",
-        x,
-        y
-      })
-    );
+    const id = ++moveId;
+moveTimes.set(id, performance.now());
+
+rtcControlChannel.send(
+  JSON.stringify({
+    type: "mouse_move",
+    x,
+    y,
+    moveId: id
+  })
+);
   });
 
   return rtcVideo;
@@ -544,6 +550,18 @@ rtcControlChannel.onopen = () => {
     const msg = JSON.parse(event.data);
 
     if (msg.type === "control_pong") {
+      if (msg.type === "mouse_move_ack") {
+  const start = moveTimes.get(msg.moveId);
+
+  if (start != null) {
+    console.log(
+      `ROBOT RTT: ${(performance.now() - start).toFixed(1)} ms`
+    );
+    moveTimes.delete(msg.moveId);
+  }
+
+  return;
+}
       const start = controlPingTimes.get(msg.id);
 
       if (start !== undefined) {
