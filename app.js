@@ -177,11 +177,11 @@ async function createMediaPeer() {
     mediaPeer = null;
   }
 
-  if (!rtcConfig) {
+  if (!RTC_CONFIG) {
   await loadRtcConfig();
 }
 
-mediaPeer = new RTCPeerConnection(rtcConfig);
+mediaPeer = new RTCPeerConnection(RTC_CONFIG);
 
   // 把自己的攝影機 + 麥克風加入連線
   if (localMediaStream) {
