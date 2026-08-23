@@ -32,6 +32,7 @@ let mediaPeer = null;
 let mediaSignalChannel = null;
 let mediaPeerId = null;
 let mediaCallStarting = false;
+let pendingMediaIce = [];
 
 async function startTeacherMediaCall() {
   if (profile?.role !== "teacher") return;
@@ -60,6 +61,21 @@ async function startTeacherMediaCall() {
     console.log("MEDIA OFFER SENT");
   } finally {
     mediaCallStarting = false;
+  }
+}
+async function flushPendingMediaIce() {
+  if (!mediaPeer?.remoteDescription) return;
+
+  while (pendingMediaIce.length > 0) {
+    const candidate = pendingMediaIce.shift();
+
+    try {
+      await mediaPeer.addIceCandidate(
+        new RTCIceCandidate(candidate)
+      );
+    } catch (err) {
+      console.error("PENDING MEDIA ICE ERROR:", err);
+    }
   }
 }
 
@@ -102,6 +118,7 @@ async function handleMediaSignal(signal) {
     await mediaPeer.setRemoteDescription(
       new RTCSessionDescription(data.description)
     );
+    await flushPendingMediaIce();
 
     const answer = await mediaPeer.createAnswer();
 
@@ -121,24 +138,38 @@ async function handleMediaSignal(signal) {
     if (!mediaPeer) return;
 
     await mediaPeer.setRemoteDescription(
-      new RTCSessionDescription(data.description)
-    );
+  new RTCSessionDescription(data.description)
+);
 
-    console.log("MEDIA ANSWER RECEIVED");
+await flushPendingMediaIce();
+
+console.log("MEDIA ANSWER RECEIVED");
     return;
   }
 
   if (type === "ice") {
-    if (!mediaPeer) return;
+  if (!data?.candidate) return;
 
-    try {
-      await mediaPeer.addIceCandidate(
-        new RTCIceCandidate(data.candidate)
-      );
-    } catch (err) {
-      console.error("MEDIA ICE ERROR:", err);
-    }
+  // Peer 尚未建立，或對方 SDP 尚未設定完成
+  // 先保存 ICE，不要丟掉
+  if (!mediaPeer || !mediaPeer.remoteDescription) {
+    pendingMediaIce.push(data.candidate);
+    console.log("MEDIA ICE QUEUED");
+    return;
   }
+
+  try {
+    await mediaPeer.addIceCandidate(
+      new RTCIceCandidate(data.candidate)
+    );
+
+    console.log("MEDIA ICE ADDED");
+  } catch (err) {
+    console.error("MEDIA ICE ERROR:", err);
+  }
+
+  return;
+}
 }
 async function createMediaPeer() {
   if (mediaPeer) {
