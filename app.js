@@ -774,6 +774,10 @@ controlMenu.addEventListener("click", async (event) => {
   if (!button || profile?.role !== "teacher") return;
 
   const mode = button.dataset.mode;
+  // 切換控制權前，先釋放遠端 Windows 所有按鍵
+sendControlMessage({
+  type: "release_all_keys"
+});
   controlMenu.classList.add("hidden");
 
   const { error } = await supabaseClient
