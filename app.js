@@ -31,6 +31,122 @@ let localMediaStream = null;
 let mediaPeer = null;
 let mediaSignalChannel = null;
 let mediaPeerId = null;
+async function startTeacherMediaCall() {
+  if (profile?.role !== "teacher") return;
+
+  await createMediaPeer();
+
+  const offer = await mediaPeer.createOffer();
+
+  await mediaPeer.setLocalDescription(offer);
+
+  await sendMediaSignal("offer", {
+    description: mediaPeer.localDescription
+  });
+
+  console.log("MEDIA OFFER SENT");
+}
+async function handleMediaSignal(signal) {
+  const type = signal.signal_type;
+  const data = signal.payload;
+
+  if (type === "offer") {
+    // 只有學生處理老師的 offer
+    if (profile?.role !== "student") return;
+
+    await createMediaPeer();
+
+    await mediaPeer.setRemoteDescription(
+      new RTCSessionDescription(data.description)
+    );
+
+    const answer = await mediaPeer.createAnswer();
+
+    await mediaPeer.setLocalDescription(answer);
+
+    await sendMediaSignal("answer", {
+      description: mediaPeer.localDescription
+    });
+
+    console.log("MEDIA ANSWER SENT");
+    return;
+  }
+
+  if (type === "answer") {
+    // 只有老師處理學生的 answer
+    if (profile?.role !== "teacher") return;
+    if (!mediaPeer) return;
+
+    await mediaPeer.setRemoteDescription(
+      new RTCSessionDescription(data.description)
+    );
+
+    console.log("MEDIA ANSWER RECEIVED");
+    return;
+  }
+
+  if (type === "ice") {
+    if (!mediaPeer) return;
+
+    try {
+      await mediaPeer.addIceCandidate(
+        new RTCIceCandidate(data.candidate)
+      );
+    } catch (err) {
+      console.error("MEDIA ICE ERROR:", err);
+    }
+  }
+}
+async function createMediaPeer() {
+  if (mediaPeer) {
+    mediaPeer.close();
+    mediaPeer = null;
+  }
+
+  mediaPeer = new RTCPeerConnection({
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }
+    ]
+  });
+
+  // 把自己的攝影機 + 麥克風加入連線
+  if (localMediaStream) {
+    localMediaStream.getTracks().forEach((track) => {
+      mediaPeer.addTrack(track, localMediaStream);
+    });
+  }
+
+  // 收到對方的影音
+  mediaPeer.ontrack = (event) => {
+    const remoteVideo = getRemoteMediaVideo();
+
+    if (event.streams && event.streams[0]) {
+      remoteVideo.srcObject = event.streams[0];
+      remoteVideo.muted = false;
+      remoteVideo.play().catch(() => {});
+    }
+
+    console.log("REMOTE MEDIA RECEIVED");
+  };
+
+  // ICE candidate 傳給另一端
+  mediaPeer.onicecandidate = (event) => {
+    if (!event.candidate) return;
+
+    sendMediaSignal("ice", {
+      candidate: event.candidate
+    });
+  };
+
+  mediaPeer.onconnectionstatechange = () => {
+    console.log(
+      "MEDIA CONNECTION STATE:",
+      mediaPeer?.connectionState
+    );
+  };
+
+  return mediaPeer;
+}
 async function sendMediaSignal(type, payload) {
   if (!mediaSignalChannel) return;
 
