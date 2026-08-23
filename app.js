@@ -20,11 +20,35 @@ const vmZoomOut = document.querySelector("#vmZoomOut");
 const vmZoomIn = document.querySelector("#vmZoomIn");
 const vmZoomLabel = document.querySelector("#vmZoomLabel");
 const vmFitBtn = document.querySelector("#vmFitBtn");
+const teacherVideo = document.querySelector("#teacherVideo");
+const studentVideo = document.querySelector("#studentVideo");
 
 let profile = null;
 let room = null;
 let roomState = null;
 let vmZoom = Number(localStorage.getItem("goldenClassroomVmZoom")) || 100;
+let localMediaStream = null;
+async function startLocalMedia() {
+  try {
+    localMediaStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
+
+    if (profile?.role === "teacher") {
+      teacherVideo.srcObject = localMediaStream;
+      teacherVideo.muted = true;
+    } else if (profile?.role === "student") {
+      studentVideo.srcObject = localMediaStream;
+      studentVideo.muted = true;
+    }
+
+    console.log("LOCAL CAMERA/MIC READY");
+  } catch (err) {
+    console.error("LOCAL MEDIA ERROR:", err);
+    showToast(`無法啟用攝影機／麥克風：${err.message}`);
+  }
+}
 function applyVmZoom() {
   vmZoom = Math.max(40, Math.min(150, vmZoom));
 
@@ -720,9 +744,12 @@ async function enterClassroom(session) {
   }
 
   loginView.classList.add("hidden");
-  classroomView.classList.remove("hidden");
+classroomView.classList.remove("hidden");
 
-  userBadge.textContent =
+// 啟動老師／學生本機攝影機與麥克風
+await startLocalMedia();
+
+userBadge.textContent =
     `${profile.display_name}｜${profile.role === "teacher" ? "老師" : "學生"}｜${room.room_code}`;
 
   roomNameEl.textContent = room.room_name;
