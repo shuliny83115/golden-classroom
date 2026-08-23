@@ -71,3 +71,15 @@
   margin-left: auto;
   margin-right: auto;
 }
+.class-video {
+  width: 100%;
+  height: 100%;
+
+  /* 填滿正方形，超出的左右兩側裁掉 */
+  object-fit: cover;
+
+  /* 關鍵：裁切時以畫面正中央為中心 */
+  object-position: 50% 50%;
+
+  display: block;
+}
