@@ -31,24 +31,67 @@ let localMediaStream = null;
 let mediaPeer = null;
 let mediaSignalChannel = null;
 let mediaPeerId = null;
+let mediaCallStarting = false;
+
 async function startTeacherMediaCall() {
   if (profile?.role !== "teacher") return;
 
-  await createMediaPeer();
+  if (
+    mediaCallStarting ||
+    mediaPeer?.connectionState === "connecting" ||
+    mediaPeer?.connectionState === "connected"
+  ) {
+    return;
+  }
 
-  const offer = await mediaPeer.createOffer();
+  mediaCallStarting = true;
 
-  await mediaPeer.setLocalDescription(offer);
+  try {
+    await createMediaPeer();
 
-  await sendMediaSignal("offer", {
-    description: mediaPeer.localDescription
-  });
+    const offer = await mediaPeer.createOffer();
 
-  console.log("MEDIA OFFER SENT");
+    await mediaPeer.setLocalDescription(offer);
+
+    await sendMediaSignal("offer", {
+      description: mediaPeer.localDescription
+    });
+
+    console.log("MEDIA OFFER SENT");
+  } finally {
+    mediaCallStarting = false;
+  }
 }
+
 async function handleMediaSignal(signal) {
   const type = signal.signal_type;
   const data = signal.payload;
+    // 老師 / 學生互相確認已進入影音 signaling
+  if (type === "ready") {
+    console.log(
+      "MEDIA READY FROM:",
+      signal.sender_role
+    );
+
+    // 老師收到學生 ready → 正式發起 WebRTC
+    if (
+      profile?.role === "teacher" &&
+      signal.sender_role === "student"
+    ) {
+      await startTeacherMediaCall();
+    }
+
+    // 如果學生先登入、老師後登入：
+    // 學生收到老師 ready 時再回報一次自己的 ready
+    if (
+      profile?.role === "student" &&
+      signal.sender_role === "teacher"
+    ) {
+      await sendMediaSignal("ready", {});
+    }
+
+    return;
+  }
 
   if (type === "offer") {
     // 只有學生處理老師的 offer
@@ -103,11 +146,11 @@ async function createMediaPeer() {
     mediaPeer = null;
   }
 
-  mediaPeer = new RTCPeerConnection({
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" }
-    ]
-  });
+  if (!rtcConfig) {
+  await loadRtcConfig();
+}
+
+mediaPeer = new RTCPeerConnection(rtcConfig);
 
   // 把自己的攝影機 + 麥克風加入連線
   if (localMediaStream) {
@@ -186,10 +229,35 @@ async function subscribeMediaSignals() {
 
         await handleMediaSignal(payload);
       }
-    )
-    .subscribe((status) => {
+    );
+
+  // 等到 Supabase Realtime 真正 SUBSCRIBED 才繼續
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("MEDIA SIGNAL CHANNEL 訂閱逾時"));
+    }, 10000);
+
+    mediaSignalChannel.subscribe((status) => {
       console.log("MEDIA SIGNAL CHANNEL:", status);
+
+      if (status === "SUBSCRIBED") {
+        clearTimeout(timeout);
+        resolve();
+      }
+
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT"
+      ) {
+        clearTimeout(timeout);
+        reject(
+          new Error(`MEDIA SIGNAL CHANNEL: ${status}`)
+        );
+      }
     });
+  });
+
+  console.log("MEDIA SIGNAL READY");
 }
 function getRemoteMediaVideo() {
   if (profile?.role === "teacher") {
@@ -919,6 +987,7 @@ classroomView.classList.remove("hidden");
 // 啟動老師／學生本機攝影機與麥克風
 await startLocalMedia();
 await subscribeMediaSignals();
+await sendMediaSignal("ready", {});
 
 userBadge.textContent =
     `${profile.display_name}｜${profile.role === "teacher" ? "老師" : "學生"}｜${room.room_code}`;
