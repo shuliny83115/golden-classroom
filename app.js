@@ -93,11 +93,24 @@ let lastMouseSend = 0;
 let moveId = 0;
 const moveTimes = new Map();
 function canRemoteControl() {
-  return (
-    profile?.role === "teacher" &&
-    (roomState?.control_mode === "teacher" ||
-      roomState?.control_mode === "shared")
-  );
+  if (!profile || !roomState) return false;
+
+  if (roomState.control_mode === "shared") {
+    return (
+      profile.role === "teacher" ||
+      profile.role === "student"
+    );
+  }
+
+  if (roomState.control_mode === "teacher") {
+    return profile.role === "teacher";
+  }
+
+  if (roomState.control_mode === "student") {
+    return profile.role === "student";
+  }
+
+  return false;
 }
 
 function sendControlMessage(message) {
@@ -278,12 +291,7 @@ rtcVideo.addEventListener("blur", () => {
       return;
     }
 
-    const canControl =
-      profile?.role === "teacher" &&
-      (roomState?.control_mode === "teacher" ||
-        roomState?.control_mode === "shared");
-
-    if (!canControl) return;
+    if (!canRemoteControl()) return;
 
     // 如果上一筆還在排隊，就丟掉舊座標
     if (rtcControlChannel.bufferedAmount > 0) {
