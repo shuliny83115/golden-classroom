@@ -216,6 +216,12 @@ rtcVideo.addEventListener("keyup", (event) => {
     code: event.code
   });
 });
+// 遠端畫面失去焦點時，釋放所有按鍵
+rtcVideo.addEventListener("blur", () => {
+  sendControlMessage({
+    type: "release_all_keys"
+  });
+});
   // 左鍵 / 右鍵按下
   rtcVideo.addEventListener("mousedown", (event) => {
     rtcVideo.focus();
