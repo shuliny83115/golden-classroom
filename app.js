@@ -28,6 +28,60 @@ let room = null;
 let roomState = null;
 let vmZoom = Number(localStorage.getItem("goldenClassroomVmZoom")) || 100;
 let localMediaStream = null;
+let mediaPeer = null;
+let mediaSignalChannel = null;
+let mediaPeerId = null;
+async function sendMediaSignal(type, payload) {
+  if (!mediaSignalChannel) return;
+
+  await mediaSignalChannel.send({
+    type: "broadcast",
+    event: "media-signal",
+    payload: {
+      room_id: room.id,
+      sender_id: profile.id,
+      sender_role: profile.role,
+      signal_type: type,
+      payload
+    }
+  });
+}
+async function subscribeMediaSignals() {
+  if (!room?.id || !profile?.id) return;
+
+  if (mediaSignalChannel) {
+    await supabaseClient.removeChannel(mediaSignalChannel);
+    mediaSignalChannel = null;
+  }
+
+  mediaSignalChannel = supabaseClient
+    .channel(`media-signals-${room.id}`)
+    .on(
+      "broadcast",
+      { event: "media-signal" },
+      async ({ payload }) => {
+        if (!payload) return;
+
+        // 自己送出的訊號不要自己處理
+        if (payload.sender_id === profile.id) return;
+
+        // 只接受同一個 Room
+        if (payload.room_id !== room.id) return;
+
+        await handleMediaSignal(payload);
+      }
+    )
+    .subscribe((status) => {
+      console.log("MEDIA SIGNAL CHANNEL:", status);
+    });
+}
+function getRemoteMediaVideo() {
+  if (profile?.role === "teacher") {
+    return studentVideo;
+  }
+
+  return teacherVideo;
+}
 async function startLocalMedia() {
   try {
     localMediaStream = await navigator.mediaDevices.getUserMedia({
@@ -748,6 +802,7 @@ classroomView.classList.remove("hidden");
 
 // 啟動老師／學生本機攝影機與麥克風
 await startLocalMedia();
+await subscribeMediaSignals();
 
 userBadge.textContent =
     `${profile.display_name}｜${profile.role === "teacher" ? "老師" : "學生"}｜${room.room_code}`;
