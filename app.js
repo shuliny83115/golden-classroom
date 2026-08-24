@@ -22,6 +22,8 @@ const vmZoomLabel = document.querySelector("#vmZoomLabel");
 const vmFitBtn = document.querySelector("#vmFitBtn");
 const teacherVideo = document.querySelector("#teacherVideo");
 const studentVideo = document.querySelector("#studentVideo");
+const micBtn = document.querySelector("#micBtn");
+const cameraBtn = document.querySelector("#cameraBtn");
 
 let profile = null;
 let room = null;
@@ -33,6 +35,8 @@ let mediaSignalChannel = null;
 let mediaPeerId = null;
 let mediaCallStarting = false;
 let pendingMediaIce = [];
+let micEnabled = true;
+let cameraEnabled = true;
 
 async function startTeacherMediaCall() {
   if (profile?.role !== "teacher") return;
@@ -303,6 +307,8 @@ async function startLocalMedia() {
       video: true,
       audio: true
     });
+    setMicEnabled(micEnabled);
+    setCameraEnabled(cameraEnabled);
 
     if (profile?.role === "teacher") {
       teacherVideo.srcObject = localMediaStream;
@@ -318,6 +324,46 @@ async function startLocalMedia() {
     showToast(`無法啟用攝影機／麥克風：${err.message}`);
   }
 }
+function updateMediaButtons() {
+  micBtn.textContent = micEnabled
+    ? "🎤 麥克風"
+    : "🔇 麥克風已關閉";
+
+  cameraBtn.textContent = cameraEnabled
+    ? "📷 攝影機"
+    : "🚫 攝影機已關閉";
+}
+
+function setMicEnabled(enabled) {
+  micEnabled = enabled;
+
+  if (localMediaStream) {
+    localMediaStream.getAudioTracks().forEach((track) => {
+      track.enabled = enabled;
+    });
+  }
+
+  updateMediaButtons();
+}
+
+function setCameraEnabled(enabled) {
+  cameraEnabled = enabled;
+
+  if (localMediaStream) {
+    localMediaStream.getVideoTracks().forEach((track) => {
+      track.enabled = enabled;
+    });
+  }
+
+  updateMediaButtons();
+}
+micBtn.addEventListener("click", () => {
+  setMicEnabled(!micEnabled);
+});
+
+cameraBtn.addEventListener("click", () => {
+  setCameraEnabled(!cameraEnabled);
+});
 function applyVmZoom() {
   vmZoom = Math.max(40, Math.min(150, vmZoom));
 
