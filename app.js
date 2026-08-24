@@ -43,6 +43,7 @@ let mediaReconnectTimer = null;
 let mediaReconnectAttempts = 0;
 let mediaReconnectInProgress = false;
 let mediaSignalReady = false;
+let mediaSignalHadError = false;
 
 const MEDIA_RECONNECT_DELAY = 3000;
 const MEDIA_MAX_RECONNECT_ATTEMPTS = 5;
@@ -446,21 +447,21 @@ async function subscribeMediaSignals() {
   console.log("MEDIA SIGNAL CHANNEL:", status);
 
   if (status === "SUBSCRIBED") {
-  mediaSignalReady = true;
+    const wasRecovered = mediaSignalHadError;
 
-  clearTimeout(timeout);
-  resolve();
+    mediaSignalReady = true;
+    mediaSignalHadError = false;
 
-  if (
-    mediaPeer &&
-    (
-      mediaPeer.connectionState === "disconnected" ||
-      mediaPeer.connectionState === "failed"
-    )
-  ) {
-    scheduleMediaReconnect("signal_restored");
+    clearTimeout(timeout);
+    resolve();
+
+    if (wasRecovered) {
+      console.log("MEDIA SIGNAL RESTORED");
+      scheduleMediaReconnect("signal_restored");
+    }
+
+    return;
   }
-}
 
   if (
     status === "CHANNEL_ERROR" ||
@@ -468,23 +469,13 @@ async function subscribeMediaSignals() {
     status === "CLOSED"
   ) {
     mediaSignalReady = false;
+    mediaSignalHadError = true;
 
-    clearTimeout(timeout);
+    console.warn("MEDIA SIGNAL LOST:", status);
 
-    if (status !== "CLOSED") {
-      reject(
-        new Error(`MEDIA SIGNAL CHANNEL: ${status}`)
-      );
-    }
+    return;
   }
 });
-        clearTimeout(timeout);
-        reject(
-          new Error(`MEDIA SIGNAL CHANNEL: ${status}`)
-        );
-      }
-    });
-  });
 
   console.log("MEDIA SIGNAL READY");
 }
