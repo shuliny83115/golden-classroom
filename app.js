@@ -256,14 +256,24 @@ function scheduleMediaReconnect(reason = "unknown") {
     mediaReconnectAttempts += 1;
 
     try {
-      console.log(
-        "MEDIA RECONNECT START:",
-        mediaReconnectAttempts
-      );
+  console.log(
+    "MEDIA RECONNECT START:",
+    mediaReconnectAttempts
+  );
 
-      // 下一步我們會在這裡放真正的重連流程
+  // 老師負責主動重建連線
+  if (profile?.role === "teacher") {
+    await startTeacherMediaCall(true);
+    return;
+  }
 
-    } catch (err) {
+  // 學生不建立 Offer，只通知老師自己仍在線
+  if (profile?.role === "student") {
+    await sendMediaSignal("ready", {});
+    return;
+  }
+
+} catch (err) {
       console.error("MEDIA RECONNECT ERROR:", err);
     } finally {
       mediaReconnectInProgress = false;
