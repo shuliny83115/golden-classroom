@@ -165,13 +165,29 @@ console.log("MEDIA ANSWER RECEIVED");
     return;
   }
   if (type === "camera_state") {
-    const remoteRole = signal.sender_role;
-    const enabled = data?.enabled === true;
+  const enabled = data?.enabled === true;
 
-    updateCameraOffOverlay(remoteRole, !enabled);
+  // 目前為一對一教室：
+  // 老師收到的遠端一定是學生
+  // 學生收到的遠端一定是老師
+  const remoteRole =
+    profile?.role === "teacher"
+      ? "student"
+      : "teacher";
 
-    return;
-  }
+  console.log(
+    "REMOTE CAMERA STATE:",
+    remoteRole,
+    enabled
+  );
+
+  updateCameraOffOverlay(
+    remoteRole,
+    !enabled
+  );
+
+  return;
+}
   if (type === "ice") {
   if (!data?.candidate) return;
 
