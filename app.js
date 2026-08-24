@@ -1255,6 +1255,7 @@ if (
     "CONTROL WATCHDOG TIMEOUT - network path may be broken",
     `${Math.round(timeSinceLastPong)} ms without pong`
   );
+  recoverClassroomConnections("control_watchdog");
 }
 
   // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
