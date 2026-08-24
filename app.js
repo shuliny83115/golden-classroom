@@ -1165,9 +1165,8 @@ rtcControlChannel.onopen = () => {
     clearInterval(controlPingTimer);
   }
 
-  controlPingTimer = setInterval(() => {
-    if (rtcControlChannel.readyState !== "open") return;
-      // 檢查最早送出的 Ping 是否超過 5 秒沒有收到 Pong
+ controlPingTimer = setInterval(() => {
+  // 先檢查是否超過 5 秒沒有收到 Pong
   const oldestPingTime =
     controlPingTimes.values().next().value;
 
@@ -1183,7 +1182,10 @@ rtcControlChannel.onopen = () => {
     );
   }
 
-    const id = ++controlPingId;
+  // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
+  if (rtcControlChannel.readyState !== "open") return;
+
+  const id = ++controlPingId;
 
     controlPingTimes.set(id, performance.now());
 
