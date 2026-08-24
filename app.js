@@ -1138,8 +1138,40 @@ async function subscribeViewerSignals() {
     .subscribe();
 }
 
-async function startWebRtcViewer() {
-  if (!room?.id || !rtcUserId || rtcPeer) return;
+async function startWebRtcViewer(force = false) {
+  if (!room?.id || !rtcUserId) return;
+
+  // 一般呼叫：已有 Peer 就不重複建立
+  if (rtcPeer && !force) return;
+
+  // 強制重連：清掉舊的 Room1 WebRTC
+  if (force) {
+    console.log("ROOM1 FORCED RECONNECT");
+
+    if (controlPingTimer) {
+      clearInterval(controlPingTimer);
+      controlPingTimer = null;
+    }
+
+    controlPingTimes.clear();
+    controlWatchdogTriggered = false;
+
+    if (rtcControlChannel) {
+      try {
+        rtcControlChannel.close();
+      } catch (_) {}
+
+      rtcControlChannel = null;
+    }
+
+    if (rtcPeer) {
+      try {
+        rtcPeer.close();
+      } catch (_) {}
+
+      rtcPeer = null;
+    }
+  }
 
   const agent = await getAgentForRoom();
   if (!agent?.user_id) return;
