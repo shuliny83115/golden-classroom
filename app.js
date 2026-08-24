@@ -667,6 +667,7 @@ let controlPingId = 0;
 const controlPingTimes = new Map();
 let controlWatchdogTriggered = false;
 const CONTROL_PONG_TIMEOUT = 5000;
+let lastControlPongAt = performance.now();
 
 // WebRTC 遠端控制
 let rtcControlChannel = null;
@@ -1195,6 +1196,7 @@ rtcControlChannel.onopen = () => {
   controlPingTimes.clear();
   controlWatchdogTriggered = false;
   controlPingId = 0;
+  lastControlPongAt = performance.now();
 
   if (controlPingTimer) {
     clearInterval(controlPingTimer);
@@ -1202,28 +1204,20 @@ rtcControlChannel.onopen = () => {
 
  controlPingTimer = setInterval(() => {
   // 先檢查是否超過 5 秒沒有收到 Pong
-  const oldestPingTime =
-    controlPingTimes.values().next().value;
+  const timeSinceLastPong =
+  performance.now() - lastControlPongAt;
 
-  if (
-    oldestPingTime !== undefined &&
-    performance.now() - oldestPingTime > CONTROL_PONG_TIMEOUT &&
-    !controlWatchdogTriggered
-  ) {
-    controlWatchdogTriggered = true;
+if (
+  timeSinceLastPong > CONTROL_PONG_TIMEOUT &&
+  !controlWatchdogTriggered
+) {
+  controlWatchdogTriggered = true;
 
-    console.warn(
-  "CONTROL WATCHDOG TIMEOUT - network path may be broken"
-);
-
-// 先立即重建 Room1 + 控制 DataChannel
-startWebRtcViewer(true).catch((err) => {
-  console.error("ROOM1 FAST RECONNECT ERROR:", err);
-});
-
-// 老師 / 學生影音也開始恢復
-scheduleMediaReconnect("control_watchdog");
-  }
+  console.warn(
+    "CONTROL WATCHDOG TIMEOUT - network path may be broken",
+    `${Math.round(timeSinceLastPong)} ms without pong`
+  );
+}
 
   // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
   if (rtcControlChannel.readyState !== "open") return;
@@ -1264,6 +1258,7 @@ rtcControlChannel.onmessage = (event) => {
 
     // WebRTC Control DataChannel Ping / Pong
     if (msg.type === "control_pong") {
+      lastControlPongAt = performance.now();
       controlWatchdogTriggered = false;
       const start = controlPingTimes.get(msg.id);
 
