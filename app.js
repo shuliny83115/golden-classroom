@@ -99,6 +99,7 @@ async function flushPendingMediaIce() {
 async function handleMediaSignal(signal) {
   const type = signal.signal_type;
   const data = signal.payload;
+  console.log("MEDIA SIGNAL RECEIVED:", type, data, signal.sender_role);
     // 老師 / 學生互相確認已進入影音 signaling
   if (type === "ready") {
     console.log(
