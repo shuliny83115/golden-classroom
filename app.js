@@ -1192,6 +1192,9 @@ async function startWebRtcViewer(force = false) {
 rtcControlChannel.onopen = () => {
   console.log("CONTROL DATA CHANNEL OPEN");
   showToast("遠端控制通道已連線");
+  controlPingTimes.clear();
+  controlWatchdogTriggered = false;
+  controlPingId = 0;
 
   if (controlPingTimer) {
     clearInterval(controlPingTimer);
@@ -1271,7 +1274,11 @@ rtcControlChannel.onmessage = (event) => {
           `CONTROL RTT: ${rtt.toFixed(1)} ms`
         );
 
-        controlPingTimes.delete(msg.id);
+        for (const id of controlPingTimes.keys()) {
+  if (id <= msg.id) {
+    controlPingTimes.delete(id);
+  }
+}
       }
 
       return;
