@@ -356,7 +356,6 @@ mediaPeer = new RTCPeerConnection(RTC_CONFIG);
 
   if (state === "connected") {
     console.log("MEDIA CONNECTION HEALTHY");
-
     resetMediaReconnectState();
     return;
   }
@@ -365,8 +364,6 @@ mediaPeer = new RTCPeerConnection(RTC_CONFIG);
     console.warn(
       "MEDIA CONNECTION DISCONNECTED"
     );
-
-    scheduleMediaReconnect("disconnected");
     return;
   }
 
@@ -374,10 +371,15 @@ mediaPeer = new RTCPeerConnection(RTC_CONFIG);
     console.error(
       "MEDIA CONNECTION FAILED"
     );
-
-    scheduleMediaReconnect("failed");
     return;
   }
+
+  if (state === "closed") {
+    console.log(
+      "MEDIA CONNECTION CLOSED"
+    );
+  }
+};
 
   if (state === "closed") {
     console.log("MEDIA CONNECTION CLOSED");
@@ -465,10 +467,6 @@ async function subscribeMediaSignals() {
         if (wasRecovered) {
           console.log(
             "MEDIA SIGNAL RESTORED"
-          );
-
-          scheduleMediaReconnect(
-            "signal_restored"
           );
         }
 
