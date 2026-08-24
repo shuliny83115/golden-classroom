@@ -174,6 +174,14 @@ console.log("MEDIA ANSWER RECEIVED");
     console.log("MEDIA ICE QUEUED");
     return;
   }
+  if (type === "camera_state") {
+  const remoteRole = signal.sender_role;
+  const enabled = data?.enabled === true;
+
+  updateCameraOffOverlay(remoteRole, !enabled);
+
+  return;
+}
 
   try {
     await mediaPeer.addIceCandidate(
@@ -362,16 +370,37 @@ function setMicEnabled(enabled) {
 function setCameraEnabled(enabled) {
   cameraEnabled = enabled;
 
-  if (localMediaStream) {
-    localMediaStream.getVideoTracks().forEach((track) => {
-      track.enabled = enabled;
-    });
+  const videoTrack =
+    localMediaStream?.getVideoTracks()?.[0];
+
+  if (videoTrack) {
+    videoTrack.enabled = enabled;
   }
 
-  // 自己這一端立即更新提示
+  // 重新開鏡頭時，重新把目前 video track 掛回 sender
+  if (enabled && mediaPeer && videoTrack) {
+    const sender = mediaPeer
+      .getSenders()
+      .find((s) => s.track?.kind === "video");
+
+    if (sender) {
+      sender.replaceTrack(videoTrack)
+        .catch((err) => {
+          console.error(
+            "VIDEO TRACK RESTORE FAILED:",
+            err
+          );
+        });
+    }
+  }
+
   if (profile?.role) {
     updateCameraOffOverlay(profile.role, !enabled);
   }
+
+  sendMediaSignal("camera_state", {
+    enabled
+  });
 
   updateMediaButtons();
 }
