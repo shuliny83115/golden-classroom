@@ -440,43 +440,73 @@ async function subscribeMediaSignals() {
   // 等到 Supabase Realtime 真正 SUBSCRIBED 才繼續
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error("MEDIA SIGNAL CHANNEL 訂閱逾時"));
+      reject(
+        new Error("MEDIA SIGNAL CHANNEL 訂閱逾時")
+      );
     }, 10000);
 
     mediaSignalChannel.subscribe((status) => {
-  console.log("MEDIA SIGNAL CHANNEL:", status);
+      console.log(
+        "MEDIA SIGNAL CHANNEL:",
+        status
+      );
 
-  if (status === "SUBSCRIBED") {
-    const wasRecovered = mediaSignalHadError;
+      if (status === "SUBSCRIBED") {
+        const wasRecovered =
+          mediaSignalHadError;
 
-    mediaSignalReady = true;
-    mediaSignalHadError = false;
+        mediaSignalReady = true;
+        mediaSignalHadError = false;
 
-    clearTimeout(timeout);
-    resolve();
+        clearTimeout(timeout);
+        resolve();
 
-    if (wasRecovered) {
-      console.log("MEDIA SIGNAL RESTORED");
-      scheduleMediaReconnect("signal_restored");
-    }
+        // 網路曾經斷線，現在 signaling 已恢復
+        if (wasRecovered) {
+          console.log(
+            "MEDIA SIGNAL RESTORED"
+          );
 
-    return;
-  }
+          scheduleMediaReconnect(
+            "signal_restored"
+          );
+        }
 
-  if (
-    status === "CHANNEL_ERROR" ||
-    status === "TIMED_OUT" ||
-    status === "CLOSED"
-  ) {
-    mediaSignalReady = false;
-    mediaSignalHadError = true;
+        return;
+      }
 
-    console.warn("MEDIA SIGNAL LOST:", status);
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED"
+      ) {
+        mediaSignalReady = false;
+        mediaSignalHadError = true;
 
-    return;
-  }
-});
-});
+        console.warn(
+          "MEDIA SIGNAL LOST:",
+          status
+        );
+
+        // 初次登入時如果訂閱真的失敗，
+        // 讓 Promise 能結束，不要永遠卡住
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT"
+        ) {
+          clearTimeout(timeout);
+          reject(
+            new Error(
+              `MEDIA SIGNAL CHANNEL: ${status}`
+            )
+          );
+        }
+
+        return;
+      }
+    });
+  });
+
   console.log("MEDIA SIGNAL READY");
 }
 function getRemoteMediaVideo() {
