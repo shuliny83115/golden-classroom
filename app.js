@@ -80,13 +80,7 @@ async function recoverClassroomConnections(reason = "unknown") {
   }
 }
 window.addEventListener("online", () => {
-  console.warn("NETWORK ONLINE - scheduling classroom recovery");
-
-  setTimeout(() => {
-    if (!profile || !room) return;
-
-    recoverClassroomConnections("network_online");
-  }, 1000);
+  console.warn("NETWORK ONLINE");
 });
 
 const MEDIA_RECONNECT_DELAY = 3000;
@@ -505,10 +499,12 @@ async function subscribeMediaSignals() {
 
         // 網路曾經斷線，現在 signaling 已恢復
         if (wasRecovered) {
-          console.log(
-            "MEDIA SIGNAL RESTORED"
-          );
-        }
+  console.log("MEDIA SIGNAL RESTORED");
+
+  recoverClassroomConnections(
+    "media_signal_restored"
+  );
+}
 
         return;
       }
@@ -1293,7 +1289,6 @@ if (
     "CONTROL WATCHDOG TIMEOUT - network path may be broken",
     `${Math.round(timeSinceLastPong)} ms without pong`
   );
-  recoverClassroomConnections("control_watchdog");
 }
 
   // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
