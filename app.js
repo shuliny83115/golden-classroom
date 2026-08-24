@@ -1157,6 +1157,7 @@ async function handleViewerSignal(signal) {
 async function subscribeViewerSignals() {
   if (rtcSignalChannel) {
     await supabaseClient.removeChannel(rtcSignalChannel);
+    rtcSignalChannel = null;
   }
 
   rtcSignalChannel = supabaseClient
@@ -1170,11 +1171,48 @@ async function subscribeViewerSignals() {
       },
       (payload) => {
         const signal = payload.new;
+
         if (signal.target_user_id !== rtcUserId) return;
+
         handleViewerSignal(signal).catch(console.error);
       }
-    )
-    .subscribe();
+    );
+
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(
+        new Error("VIEWER SIGNAL CHANNEL 訂閱逾時")
+      );
+    }, 8000);
+
+    rtcSignalChannel.subscribe((status) => {
+      console.log(
+        "VIEWER SIGNAL CHANNEL:",
+        status
+      );
+
+      if (status === "SUBSCRIBED") {
+        clearTimeout(timeout);
+        resolve();
+        return;
+      }
+
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT"
+      ) {
+        clearTimeout(timeout);
+
+        reject(
+          new Error(
+            `VIEWER SIGNAL CHANNEL: ${status}`
+          )
+        );
+      }
+    });
+  });
+
+  console.log("VIEWER SIGNAL READY");
 }
 
 async function startWebRtcViewer(force = false) {
