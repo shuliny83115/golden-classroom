@@ -1259,7 +1259,12 @@ if (
 }
 
   // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
-  if (rtcControlChannel.readyState !== "open") return;
+  if (
+  !rtcControlChannel ||
+  rtcControlChannel.readyState !== "open"
+) {
+  return;
+}
 
   const id = ++controlPingId;
 
