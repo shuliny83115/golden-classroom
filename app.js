@@ -42,6 +42,7 @@ let cameraEnabled = true;
 let mediaReconnectTimer = null;
 let mediaReconnectAttempts = 0;
 let mediaReconnectInProgress = false;
+let mediaSignalReady = false;
 
 const MEDIA_RECONNECT_DELAY = 3000;
 const MEDIA_MAX_RECONNECT_ATTEMPTS = 5;
@@ -251,34 +252,48 @@ function scheduleMediaReconnect(reason = "unknown") {
   );
 
   mediaReconnectTimer = setTimeout(async () => {
-    mediaReconnectTimer = null;
-    mediaReconnectInProgress = true;
-    mediaReconnectAttempts += 1;
+  mediaReconnectTimer = null;
 
-    try {
-  console.log(
-    "MEDIA RECONNECT START:",
-    mediaReconnectAttempts
-  );
+  // Signaling 還沒恢復，不要急著重連
+  if (!mediaSignalReady) {
+    console.log(
+      "MEDIA RECONNECT WAITING FOR SIGNAL CHANNEL"
+    );
 
-  // 老師負責主動重建連線
-  if (profile?.role === "teacher") {
-    await startTeacherMediaCall(true);
+    scheduleMediaReconnect("waiting_for_signal");
     return;
   }
 
-  // 學生不建立 Offer，只通知老師自己仍在線
-  if (profile?.role === "student") {
-    await sendMediaSignal("ready", {});
-    return;
-  }
+  mediaReconnectInProgress = true;
+  mediaReconnectAttempts += 1;
 
-} catch (err) {
-      console.error("MEDIA RECONNECT ERROR:", err);
-    } finally {
-      mediaReconnectInProgress = false;
+  try {
+    console.log(
+      "MEDIA RECONNECT START:",
+      mediaReconnectAttempts
+    );
+
+    // 老師負責主動重建連線
+    if (profile?.role === "teacher") {
+      await startTeacherMediaCall(true);
+      return;
     }
-  }, MEDIA_RECONNECT_DELAY);
+
+    // 學生只通知老師自己還在線
+    if (profile?.role === "student") {
+      await sendMediaSignal("ready", {});
+      return;
+    }
+
+  } catch (err) {
+    console.error(
+      "MEDIA RECONNECT ERROR:",
+      err
+    );
+  } finally {
+    mediaReconnectInProgress = false;
+  }
+}, MEDIA_RECONNECT_DELAY);
 }
 function resetMediaReconnectState() {
   if (mediaReconnectTimer) {
@@ -428,17 +443,41 @@ async function subscribeMediaSignals() {
     }, 10000);
 
     mediaSignalChannel.subscribe((status) => {
-      console.log("MEDIA SIGNAL CHANNEL:", status);
+  console.log("MEDIA SIGNAL CHANNEL:", status);
 
-      if (status === "SUBSCRIBED") {
-        clearTimeout(timeout);
-        resolve();
-      }
+  if (status === "SUBSCRIBED") {
+  mediaSignalReady = true;
 
-      if (
-        status === "CHANNEL_ERROR" ||
-        status === "TIMED_OUT"
-      ) {
+  clearTimeout(timeout);
+  resolve();
+
+  if (
+    mediaPeer &&
+    (
+      mediaPeer.connectionState === "disconnected" ||
+      mediaPeer.connectionState === "failed"
+    )
+  ) {
+    scheduleMediaReconnect("signal_restored");
+  }
+}
+
+  if (
+    status === "CHANNEL_ERROR" ||
+    status === "TIMED_OUT" ||
+    status === "CLOSED"
+  ) {
+    mediaSignalReady = false;
+
+    clearTimeout(timeout);
+
+    if (status !== "CLOSED") {
+      reject(
+        new Error(`MEDIA SIGNAL CHANNEL: ${status}`)
+      );
+    }
+  }
+});
         clearTimeout(timeout);
         reject(
           new Error(`MEDIA SIGNAL CHANNEL: ${status}`)
