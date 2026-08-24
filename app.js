@@ -39,6 +39,12 @@ let mediaCallStarting = false;
 let pendingMediaIce = [];
 let micEnabled = true;
 let cameraEnabled = true;
+let mediaReconnectTimer = null;
+let mediaReconnectAttempts = 0;
+let mediaReconnectInProgress = false;
+
+const MEDIA_RECONNECT_DELAY = 3000;
+const MEDIA_MAX_RECONNECT_ATTEMPTS = 5;
 
 function updateCameraOffOverlay(role, isOff) {
   const overlay =
@@ -211,6 +217,53 @@ console.log("MEDIA ANSWER RECEIVED");
   return;
 }
 }
+function scheduleMediaReconnect(reason = "unknown") {
+  if (mediaReconnectInProgress) return;
+  if (mediaReconnectTimer) return;
+
+  if (mediaReconnectAttempts >= MEDIA_MAX_RECONNECT_ATTEMPTS) {
+    console.error(
+      "MEDIA RECONNECT STOPPED: max attempts reached",
+      reason
+    );
+    return;
+  }
+
+  console.log(
+    "MEDIA RECONNECT SCHEDULED:",
+    reason,
+    `attempt ${mediaReconnectAttempts + 1}`
+  );
+
+  mediaReconnectTimer = setTimeout(async () => {
+    mediaReconnectTimer = null;
+    mediaReconnectInProgress = true;
+    mediaReconnectAttempts += 1;
+
+    try {
+      console.log(
+        "MEDIA RECONNECT START:",
+        mediaReconnectAttempts
+      );
+
+      // 下一步我們會在這裡放真正的重連流程
+
+    } catch (err) {
+      console.error("MEDIA RECONNECT ERROR:", err);
+    } finally {
+      mediaReconnectInProgress = false;
+    }
+  }, MEDIA_RECONNECT_DELAY);
+}
+function resetMediaReconnectState() {
+  if (mediaReconnectTimer) {
+    clearTimeout(mediaReconnectTimer);
+    mediaReconnectTimer = null;
+  }
+
+  mediaReconnectAttempts = 0;
+  mediaReconnectInProgress = false;
+}
 async function createMediaPeer() {
   if (mediaPeer) {
     mediaPeer.close();
@@ -253,11 +306,42 @@ mediaPeer = new RTCPeerConnection(RTC_CONFIG);
   };
 
   mediaPeer.onconnectionstatechange = () => {
-    console.log(
-      "MEDIA CONNECTION STATE:",
-      mediaPeer?.connectionState
+  const state = mediaPeer?.connectionState;
+
+  console.log(
+    "MEDIA CONNECTION STATE:",
+    state
+  );
+
+  if (state === "connected") {
+    console.log("MEDIA CONNECTION HEALTHY");
+
+    resetMediaReconnectState();
+    return;
+  }
+
+  if (state === "disconnected") {
+    console.warn(
+      "MEDIA CONNECTION DISCONNECTED"
     );
-  };
+
+    scheduleMediaReconnect("disconnected");
+    return;
+  }
+
+  if (state === "failed") {
+    console.error(
+      "MEDIA CONNECTION FAILED"
+    );
+
+    scheduleMediaReconnect("failed");
+    return;
+  }
+
+  if (state === "closed") {
+    console.log("MEDIA CONNECTION CLOSED");
+  }
+};
 
   return mediaPeer;
 }
