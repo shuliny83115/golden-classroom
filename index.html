@@ -2,22 +2,38 @@
 <main id="loginView" class="login-shell"><form id="loginForm" class="login-card"><div class="brand">Golden Classroom</div><h1>登入線上教室</h1><p class="muted">登入後會自動進入您的授課教室。</p><label>帳號<input id="account" autocomplete="username" placeholder="teacher01" required></label><label>密碼<input id="password" type="password" autocomplete="current-password" required></label><button class="primary" type="submit">登入</button><p id="loginError" class="error"></p><div class="test-accounts">測試帳號：teacher01 / teacher01、student01 / student01</div></form></main>
 <main id="classroomView" class="classroom hidden"><header class="topbar"><div><strong>Golden Classroom</strong><span id="userBadge" class="badge"></span></div><div class="top-actions"><span id="roomStatus" class="status-dot">● Room 連線中</span><button id="logoutBtn" class="ghost">登出</button></div></header><section class="workspace"><aside class="video-column"><section class="video-card">
   <div class="video-label">老師視訊</div>
-  <video
-    id="teacherVideo"
-    class="class-video"
-    autoplay
-    playsinline
-  ></video>
+
+  <div class="video-stage">
+    <video
+      id="teacherVideo"
+      class="class-video"
+      autoplay
+      playsinline
+    ></video>
+
+    <div id="teacherCameraOff" class="camera-off hidden">
+      <div class="camera-off-icon">📷</div>
+      <div>老師已關閉攝影機</div>
+    </div>
+  </div>
 </section>
 
 <section class="video-card">
   <div class="video-label">學生視訊</div>
-  <video
-    id="studentVideo"
-    class="class-video"
-    autoplay
-    playsinline
-  ></video>
+
+  <div class="video-stage">
+    <video
+      id="studentVideo"
+      class="class-video"
+      autoplay
+      playsinline
+    ></video>
+
+    <div id="studentCameraOff" class="camera-off hidden">
+      <div class="camera-off-icon">📷</div>
+      <div>學生已關閉攝影機</div>
+    </div>
+  </div>
 </section></aside><section class="vm-panel"><div class="vm-top">
   <div>
     <div id="roomName" class="room-title">Room 1</div>
