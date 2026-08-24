@@ -1180,6 +1180,7 @@ rtcControlChannel.onopen = () => {
     console.warn(
       "CONTROL WATCHDOG TIMEOUT - network path may be broken"
     );
+    scheduleMediaReconnect("control_watchdog");
   }
 
   // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
