@@ -48,46 +48,6 @@ let mediaSignalHadError = false;
 const MEDIA_RECONNECT_DELAY = 3000;
 const MEDIA_MAX_RECONNECT_ATTEMPTS = 5;
 
-window.addEventListener("offline", () => {
-  console.log("NETWORK EVENT: OFFLINE");
-});
-
-window.addEventListener("online", () => {
-  console.log("NETWORK EVENT: ONLINE");
-});
-
-async function fastRecoverConnections() {
-  console.log("FAST RECOVERY START");
-
-  // 先取消舊的延遲重連
-  if (mediaReconnectTimer) {
-    clearTimeout(mediaReconnectTimer);
-    mediaReconnectTimer = null;
-  }
-
-  mediaReconnectAttempts = 0;
-  mediaReconnectInProgress = false;
-
-  try {
-    // 1. 重新建立 Supabase media signaling
-    await subscribeMediaSignals();
-
-    // 2. signaling 確定恢復後，立刻重建影音
-    if (profile?.role === "teacher") {
-      await startTeacherMediaCall(true);
-    } else if (profile?.role === "student") {
-      await sendMediaSignal("ready", {});
-    }
-
-    console.log("FAST MEDIA RECOVERY TRIGGERED");
-  } catch (err) {
-    console.error("FAST RECOVERY ERROR:", err);
-
-    // 快速恢復失敗，才退回原本慢速保險
-    scheduleMediaReconnect("fast_recovery_failed");
-  }
-}
-
 function updateCameraOffOverlay(role, isOff) {
   const overlay =
     role === "teacher"
@@ -705,6 +665,8 @@ let toastTimer = null;
 let controlPingTimer = null;
 let controlPingId = 0;
 const controlPingTimes = new Map();
+let controlWatchdogTriggered = false;
+const CONTROL_PONG_TIMEOUT = 5000;
 
 // WebRTC 遠端控制
 let rtcControlChannel = null;
@@ -1205,6 +1167,21 @@ rtcControlChannel.onopen = () => {
 
   controlPingTimer = setInterval(() => {
     if (rtcControlChannel.readyState !== "open") return;
+      // 檢查最早送出的 Ping 是否超過 5 秒沒有收到 Pong
+  const oldestPingTime =
+    controlPingTimes.values().next().value;
+
+  if (
+    oldestPingTime !== undefined &&
+    performance.now() - oldestPingTime > CONTROL_PONG_TIMEOUT &&
+    !controlWatchdogTriggered
+  ) {
+    controlWatchdogTriggered = true;
+
+    console.warn(
+      "CONTROL WATCHDOG TIMEOUT - network path may be broken"
+    );
+  }
 
     const id = ++controlPingId;
 
@@ -1242,6 +1219,7 @@ rtcControlChannel.onmessage = (event) => {
 
     // WebRTC Control DataChannel Ping / Pong
     if (msg.type === "control_pong") {
+      controlWatchdogTriggered = false;
       const start = controlPingTimes.get(msg.id);
 
       if (start !== undefined) {
