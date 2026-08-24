@@ -381,10 +381,6 @@ mediaPeer = new RTCPeerConnection(RTC_CONFIG);
   }
 };
 
-  if (state === "closed") {
-    console.log("MEDIA CONNECTION CLOSED");
-  }
-};
 
   return mediaPeer;
 }
