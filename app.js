@@ -44,6 +44,50 @@ let mediaReconnectAttempts = 0;
 let mediaReconnectInProgress = false;
 let mediaSignalReady = false;
 let mediaSignalHadError = false;
+let classroomRecoveryInProgress = false;
+async function recoverClassroomConnections(reason = "unknown") {
+  if (classroomRecoveryInProgress) {
+    console.log("CLASSROOM RECOVERY SKIPPED - already running:", reason);
+    return;
+  }
+
+  classroomRecoveryInProgress = true;
+  console.warn("CLASSROOM RECOVERY START:", reason);
+
+  try {
+    // 1. 先恢復 Room Agent 桌面串流 + Control DataChannel
+    if (profile?.role === "teacher") {
+      console.log("RECOVERY: rebuilding Room1 viewer...");
+      await startWebRtcViewer(true);
+    }
+
+    // 2. 再恢復老師 / 學生攝影機與麥克風 WebRTC
+    console.log("RECOVERY: rebuilding media connection...");
+
+    if (profile?.role === "teacher") {
+      await startTeacherMediaCall(true);
+    } else if (profile?.role === "student") {
+      await sendMediaSignal("ready", {});
+    }
+
+    console.log("CLASSROOM RECOVERY COMPLETE:", reason);
+
+  } catch (err) {
+    console.error("CLASSROOM RECOVERY ERROR:", reason, err);
+
+  } finally {
+    classroomRecoveryInProgress = false;
+  }
+}
+window.addEventListener("online", () => {
+  console.warn("NETWORK ONLINE - scheduling classroom recovery");
+
+  setTimeout(() => {
+    if (!profile || !room) return;
+
+    recoverClassroomConnections("network_online");
+  }, 1000);
+});
 
 const MEDIA_RECONNECT_DELAY = 3000;
 const MEDIA_MAX_RECONNECT_ATTEMPTS = 5;
