@@ -164,7 +164,14 @@ await flushPendingMediaIce();
 console.log("MEDIA ANSWER RECEIVED");
     return;
   }
+  if (type === "camera_state") {
+    const remoteRole = signal.sender_role;
+    const enabled = data?.enabled === true;
 
+    updateCameraOffOverlay(remoteRole, !enabled);
+
+    return;
+  }
   if (type === "ice") {
   if (!data?.candidate) return;
 
@@ -175,15 +182,6 @@ console.log("MEDIA ANSWER RECEIVED");
     console.log("MEDIA ICE QUEUED");
     return;
   }
-  if (type === "camera_state") {
-  const remoteRole = signal.sender_role;
-  const enabled = data?.enabled === true;
-
-  updateCameraOffOverlay(remoteRole, !enabled);
-
-  return;
-}
-
   try {
     await mediaPeer.addIceCandidate(
       new RTCIceCandidate(data.candidate)
