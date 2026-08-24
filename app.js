@@ -57,13 +57,22 @@ function updateCameraOffOverlay(role, isOff) {
   overlay.classList.toggle("hidden", !isOff);
 }
 
-async function startTeacherMediaCall() {
+async function startTeacherMediaCall(force = false) {
   if (profile?.role !== "teacher") return;
 
+  // 已經正在建立 Offer 時，永遠不要重複建立
+  if (mediaCallStarting) {
+    return;
+  }
+
+  // 一般情況下，已有正常連線就不重建
+  // force=true 時則強制換掉舊 PeerConnection
   if (
-    mediaCallStarting ||
-    mediaPeer?.connectionState === "connecting" ||
-    mediaPeer?.connectionState === "connected"
+    !force &&
+    (
+      mediaPeer?.connectionState === "connecting" ||
+      mediaPeer?.connectionState === "connected"
+    )
   ) {
     return;
   }
@@ -81,7 +90,11 @@ async function startTeacherMediaCall() {
       description: mediaPeer.localDescription
     });
 
-    console.log("MEDIA OFFER SENT");
+    console.log(
+      force
+        ? "MEDIA OFFER SENT (FORCED RECONNECT)"
+        : "MEDIA OFFER SENT"
+    );
   } finally {
     mediaCallStarting = false;
   }
@@ -115,11 +128,13 @@ async function handleMediaSignal(signal) {
 
     // 老師收到學生 ready → 正式發起 WebRTC
     if (
-      profile?.role === "teacher" &&
-      signal.sender_role === "student"
-    ) {
-      await startTeacherMediaCall();
-    }
+  profile?.role === "teacher" &&
+  signal.sender_role === "student"
+) {
+  // 學生送出 ready 代表可能是新頁面 / 重新登入，
+  // 不相信舊 PeerConnection 的 connected 狀態，直接重建。
+  await startTeacherMediaCall(true);
+}
 
     // 如果學生先登入、老師後登入：
     // 學生收到老師 ready 時再回報一次自己的 ready
