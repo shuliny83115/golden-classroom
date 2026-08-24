@@ -1210,9 +1210,16 @@ rtcControlChannel.onopen = () => {
     controlWatchdogTriggered = true;
 
     console.warn(
-      "CONTROL WATCHDOG TIMEOUT - network path may be broken"
-    );
-    scheduleMediaReconnect("control_watchdog");
+  "CONTROL WATCHDOG TIMEOUT - network path may be broken"
+);
+
+// 先立即重建 Room1 + 控制 DataChannel
+startWebRtcViewer(true).catch((err) => {
+  console.error("ROOM1 FAST RECONNECT ERROR:", err);
+});
+
+// 老師 / 學生影音也開始恢復
+scheduleMediaReconnect("control_watchdog");
   }
 
   // 檢查完 watchdog 後，才判斷 DataChannel 能不能繼續送 Ping
