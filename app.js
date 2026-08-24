@@ -24,6 +24,8 @@ const teacherVideo = document.querySelector("#teacherVideo");
 const studentVideo = document.querySelector("#studentVideo");
 const micBtn = document.querySelector("#micBtn");
 const cameraBtn = document.querySelector("#cameraBtn");
+const teacherCameraOff = document.querySelector("#teacherCameraOff");
+const studentCameraOff = document.querySelector("#studentCameraOff");
 
 let profile = null;
 let room = null;
@@ -37,6 +39,17 @@ let mediaCallStarting = false;
 let pendingMediaIce = [];
 let micEnabled = true;
 let cameraEnabled = true;
+
+function updateCameraOffOverlay(role, isOff) {
+  const overlay =
+    role === "teacher"
+      ? teacherCameraOff
+      : studentCameraOff;
+
+  if (!overlay) return;
+
+  overlay.classList.toggle("hidden", !isOff);
+}
 
 async function startTeacherMediaCall() {
   if (profile?.role !== "teacher") return;
@@ -353,6 +366,11 @@ function setCameraEnabled(enabled) {
     localMediaStream.getVideoTracks().forEach((track) => {
       track.enabled = enabled;
     });
+  }
+
+  // 自己這一端立即更新提示
+  if (profile?.role) {
+    updateCameraOffOverlay(profile.role, !enabled);
   }
 
   updateMediaButtons();
