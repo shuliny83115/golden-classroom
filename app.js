@@ -476,7 +476,7 @@ async function subscribeMediaSignals() {
     return;
   }
 });
-
+});
   console.log("MEDIA SIGNAL READY");
 }
 function getRemoteMediaVideo() {
