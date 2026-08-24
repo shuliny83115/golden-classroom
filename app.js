@@ -248,9 +248,12 @@ mediaPeer = new RTCPeerConnection(RTC_CONFIG);
   return mediaPeer;
 }
 async function sendMediaSignal(type, payload) {
-  if (!mediaSignalChannel) return;
+  if (!mediaSignalChannel) {
+    console.log("MEDIA SIGNAL NOT SENT - no channel:", type);
+    return;
+  }
 
-  await mediaSignalChannel.send({
+  const result = await mediaSignalChannel.send({
     type: "broadcast",
     event: "media-signal",
     payload: {
@@ -261,6 +264,13 @@ async function sendMediaSignal(type, payload) {
       payload
     }
   });
+
+  console.log(
+    "MEDIA SIGNAL SENT:",
+    type,
+    payload,
+    result
+  );
 }
 async function subscribeMediaSignals() {
   if (!room?.id || !profile?.id) return;
