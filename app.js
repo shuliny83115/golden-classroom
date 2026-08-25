@@ -1095,7 +1095,6 @@ async function refreshAgentStatus() {
   roomStatus.style.color = online ? "#16794b" : "#667085";
 
   }
-}
 
 function startAgentStatusMonitor() {
   if (agentStatusTimer) clearInterval(agentStatusTimer);
