@@ -864,6 +864,7 @@ let lastControlPongAt = performance.now();
 let rtcControlChannel = null;
 let rtcMouseChannel = null;
 let lastMouseSend = 0;
+let moveId = 0;
 function canRemoteControl() {
   if (!profile || !roomState) return false;
 
@@ -1111,11 +1112,14 @@ rtcVideo.addEventListener("blur", () => {
     const x = px / drawWidth;
     const y = py / drawHeight;
 
+const id = ++moveId;
+
 rtcControlChannel.send(
   JSON.stringify({
     type: "mouse_move",
     x,
-    y
+    y,
+    moveId: id
   })
 );
   });
