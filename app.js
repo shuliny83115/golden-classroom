@@ -1094,11 +1094,6 @@ async function refreshAgentStatus() {
     : "● Room Agent 離線";
   roomStatus.style.color = online ? "#16794b" : "#667085";
 
-  if (online && !rtcPeer) {
-    startWebRtcViewer().catch((err) => {
-      console.error("WebRTC start failed:", err);
-      showVmWaiting("桌面串流連線失敗");
-    });
   }
 }
 
@@ -1461,6 +1456,12 @@ userBadge.textContent =
   showVmWaiting();
   subscribeRoomState();
   startAgentStatusMonitor();
+  if (profile?.role === "teacher") {
+  startWebRtcViewer().catch((err) => {
+    console.error("INITIAL WEBRTC START FAILED:", err);
+    showVmWaiting("桌面串流連線失敗");
+  });
+}
 }
 
 function subscribeRoomState() {
