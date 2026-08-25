@@ -47,6 +47,32 @@ let mediaSignalHadError = false;
 let classroomRecoveryInProgress = false;
 let viewerSignalHadError = false;
 
+async function waitForSupabaseOnline(
+  timeoutMs = 12000,
+  intervalMs = 500
+) {
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const { error } = await supabaseClient
+        .from("room_agents")
+        .select("user_id")
+        .limit(1);
+
+      if (!error) {
+        console.log("SUPABASE NETWORK READY");
+        return true;
+      }
+    } catch (_) {}
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, intervalMs)
+    );
+  }
+
+  throw new Error("SUPABASE NETWORK RECOVERY TIMEOUT");
+}
 async function recoverClassroomConnections(reason = "unknown") {
   if (classroomRecoveryInProgress) {
     console.log("CLASSROOM RECOVERY SKIPPED - already running:", reason);
@@ -81,8 +107,29 @@ async function recoverClassroomConnections(reason = "unknown") {
     classroomRecoveryInProgress = false;
   }
 }
-window.addEventListener("online", () => {
+window.addEventListener("online", async () => {
   console.warn("NETWORK ONLINE");
+
+  if (!profile || !room) return;
+
+  try {
+    console.log("WAITING FOR SUPABASE NETWORK...");
+
+    await waitForSupabaseOnline();
+
+    console.log(
+      "NETWORK REALLY READY - starting recovery"
+    );
+
+    await recoverClassroomConnections(
+      "network_really_online"
+    );
+  } catch (err) {
+    console.error(
+      "NETWORK RECOVERY WAIT FAILED:",
+      err
+    );
+  }
 });
 
 const MEDIA_RECONNECT_DELAY = 3000;
