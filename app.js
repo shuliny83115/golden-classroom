@@ -46,11 +46,99 @@ let mediaSignalReady = false;
 let mediaSignalHadError = false;
 let classroomRecoveryInProgress = false;
 let viewerSignalHadError = false;
+let networkRecoveryInProgress = false;
 
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function probeSupabaseRealtime(timeoutMs = 2500) {
+  const probeChannel = supabaseClient.channel(
+    `recovery-probe-${Date.now()}-${Math.random()}`
+  );
+
+  return new Promise((resolve) => {
+    let finished = false;
+
+    const finish = async (ok) => {
+      if (finished) return;
+      finished = true;
+
+      clearTimeout(timeout);
+
+      try {
+        await supabaseClient.removeChannel(probeChannel);
+      } catch (_) {}
+
+      resolve(ok);
+    };
+
+    const timeout = setTimeout(() => {
+      finish(false);
+    }, timeoutMs);
+
+    probeChannel.subscribe((status) => {
+      console.log(
+        "RECOVERY REALTIME PROBE:",
+        status
+      );
+
+      if (status === "SUBSCRIBED") {
+        finish(true);
+        return;
+      }
+
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED"
+      ) {
+        finish(false);
+      }
+    });
+  });
+}
 async function waitForSupabaseOnline(
-  timeoutMs = 12000,
+  timeoutMs = 15000,
   intervalMs = 500
 ) {
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      // 第一關：REST API 可用
+      const { error } = await supabaseClient
+        .from("room_agents")
+        .select("user_id")
+        .limit(1);
+
+      if (!error) {
+        console.log(
+          "SUPABASE REST READY - checking Realtime..."
+        );
+
+        // 第二關：Realtime WebSocket 真的可以 SUBSCRIBED
+        const realtimeReady =
+          await probeSupabaseRealtime();
+
+        if (realtimeReady) {
+          console.log(
+            "SUPABASE FULLY READY"
+          );
+
+          return true;
+        }
+      }
+
+    } catch (_) {}
+
+    await waitMs(intervalMs);
+  }
+
+  throw new Error(
+    "SUPABASE FULL RECOVERY TIMEOUT"
+  );
+}
   const start = Date.now();
 
   while (Date.now() - start < timeoutMs) {
@@ -112,23 +200,39 @@ window.addEventListener("online", async () => {
 
   if (!profile || !room) return;
 
+  // 同一次 Wi-Fi 切換只允許一個網路恢復流程
+  if (networkRecoveryInProgress) {
+    console.log(
+      "NETWORK RECOVERY SKIPPED - already running"
+    );
+    return;
+  }
+
+  networkRecoveryInProgress = true;
+
   try {
-    console.log("WAITING FOR SUPABASE NETWORK...");
+    console.log(
+      "WAITING FOR SUPABASE FULL RECOVERY..."
+    );
 
     await waitForSupabaseOnline();
 
     console.log(
-      "NETWORK REALLY READY - starting recovery"
+      "NETWORK + REALTIME READY - starting recovery"
     );
 
     await recoverClassroomConnections(
-      "network_really_online"
+      "network_fully_online"
     );
+
   } catch (err) {
     console.error(
       "NETWORK RECOVERY WAIT FAILED:",
       err
     );
+
+  } finally {
+    networkRecoveryInProgress = false;
   }
 });
 
