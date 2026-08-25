@@ -45,6 +45,8 @@ let mediaReconnectInProgress = false;
 let mediaSignalReady = false;
 let mediaSignalHadError = false;
 let classroomRecoveryInProgress = false;
+let viewerSignalHadError = false;
+
 async function recoverClassroomConnections(reason = "unknown") {
   if (classroomRecoveryInProgress) {
     console.log("CLASSROOM RECOVERY SKIPPED - already running:", reason);
@@ -1182,15 +1184,35 @@ async function subscribeViewerSignals() {
       );
 
       if (status === "SUBSCRIBED") {
-        clearTimeout(timeout);
-        resolve();
-        return;
-      }
+  const wasRecovered = viewerSignalHadError;
+
+  viewerSignalHadError = false;
+
+  clearTimeout(timeout);
+  resolve();
+
+  if (wasRecovered) {
+    console.log("VIEWER SIGNAL RESTORED");
+
+    if (
+      profile?.role === "teacher" &&
+      !classroomRecoveryInProgress
+    ) {
+      recoverClassroomConnections(
+        "viewer_signal_restored"
+      );
+    }
+  }
+
+  return;
+}
 
       if (
-        status === "CHANNEL_ERROR" ||
-        status === "TIMED_OUT"
-      ) {
+  status === "CHANNEL_ERROR" ||
+  status === "TIMED_OUT" ||
+  status === "CLOSED"
+) {
+  viewerSignalHadError = true;
         clearTimeout(timeout);
 
         reject(
