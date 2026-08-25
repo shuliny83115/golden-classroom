@@ -864,8 +864,6 @@ let lastControlPongAt = performance.now();
 let rtcControlChannel = null;
 let rtcMouseChannel = null;
 let lastMouseSend = 0;
-let moveId = 0;
-const moveTimes = new Map();
 function canRemoteControl() {
   if (!profile || !roomState) return false;
 
@@ -1113,15 +1111,11 @@ rtcVideo.addEventListener("blur", () => {
     const x = px / drawWidth;
     const y = py / drawHeight;
 
-    const id = ++moveId;
-moveTimes.set(id, performance.now());
-
 rtcControlChannel.send(
   JSON.stringify({
     type: "mouse_move",
     x,
-    y,
-    moveId: id
+    y
   })
 );
   });
@@ -1485,9 +1479,7 @@ if (
 rtcControlChannel.onmessage = (event) => {
   try {
     const msg = JSON.parse(event.data);
-    if (msg.type === "mouse_move_ack") {
-  console.log("RAW ACK RECEIVED:", msg.moveId);
-}
+    
 
     // WebRTC Control DataChannel Ping / Pong
     if (msg.type === "control_pong") {
