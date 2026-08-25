@@ -1490,19 +1490,27 @@ rtcControlChannel.onmessage = (event) => {
 }
 
     // RobotJS 真正執行 mouse_move 後回傳的 ACK
-    if (msg.type === "mouse_move_ack") {
-      const start = moveTimes.get(msg.moveId);
+if (msg.type === "mouse_move_ack") {
+  const start = moveTimes.get(msg.moveId);
 
-      if (start !== undefined) {
-        console.log(
-          `ROBOT RTT: ${(performance.now() - start).toFixed(1)} ms`
-        );
+  if (start !== undefined) {
+    console.log(
+      `ROBOT RTT: ${(performance.now() - start).toFixed(1)} ms`
+    );
 
-        moveTimes.delete(msg.moveId);
-      }
+    console.log(
+      `ROBOT EXEC: ${Number(msg.robotExecMs).toFixed(3)} ms`
+    );
 
-      return;
-    }
+    console.log(
+      `BRIDGE EXEC: ${Number(msg.bridgeExecMs).toFixed(3)} ms`
+    );
+
+    moveTimes.delete(msg.moveId);
+  }
+
+  return;
+}
 
     // WebRTC Control DataChannel Ping / Pong
     if (msg.type === "control_pong") {
