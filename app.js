@@ -1498,14 +1498,6 @@ if (msg.type === "mouse_move_ack") {
       `ROBOT RTT: ${(performance.now() - start).toFixed(1)} ms`
     );
 
-    console.log(
-      `ROBOT EXEC: ${Number(msg.robotExecMs).toFixed(3)} ms`
-    );
-
-    console.log(
-      `BRIDGE EXEC: ${Number(msg.bridgeExecMs).toFixed(3)} ms`
-    );
-
     moveTimes.delete(msg.moveId);
   }
 
