@@ -99,14 +99,15 @@ async function probeSupabaseRealtime(timeoutMs = 2500) {
   });
 }
 async function waitForSupabaseOnline(
-  timeoutMs = 15000,
-  intervalMs = 500
+  timeoutMs = 10000,
+  intervalMs = 400
 ) {
   const start = Date.now();
+  let realtimeResetDone = false;
 
   while (Date.now() - start < timeoutMs) {
     try {
-      // 第一關：REST API 可用
+      // 第一關：確認 REST API 已經真的恢復
       const { error } = await supabaseClient
         .from("room_agents")
         .select("user_id")
@@ -117,7 +118,30 @@ async function waitForSupabaseOnline(
           "SUPABASE REST READY - checking Realtime..."
         );
 
-        // 第二關：Realtime WebSocket 真的可以 SUBSCRIBED
+        // 換網路後，不再等舊 WebSocket 自己復活
+        // 主動重建 Supabase Realtime socket，一次就好
+        if (!realtimeResetDone) {
+          realtimeResetDone = true;
+
+          console.warn(
+            "RESETTING SUPABASE REALTIME CONNECTION"
+          );
+
+          try {
+            supabaseClient.realtime.disconnect();
+          } catch (_) {}
+
+          await waitMs(150);
+
+          try {
+            supabaseClient.realtime.connect();
+          } catch (_) {}
+
+          // 給新的 WebSocket 一點建立時間
+          await waitMs(300);
+        }
+
+        // 第二關：實際確認新的 Realtime 可以 SUBSCRIBED
         const realtimeReady =
           await probeSupabaseRealtime();
 
