@@ -139,28 +139,7 @@ async function waitForSupabaseOnline(
     "SUPABASE FULL RECOVERY TIMEOUT"
   );
 }
-  const start = Date.now();
-
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const { error } = await supabaseClient
-        .from("room_agents")
-        .select("user_id")
-        .limit(1);
-
-      if (!error) {
-        console.log("SUPABASE NETWORK READY");
-        return true;
-      }
-    } catch (_) {}
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, intervalMs)
-    );
-  }
-
-  throw new Error("SUPABASE NETWORK RECOVERY TIMEOUT");
-}
+  
 async function recoverClassroomConnections(reason = "unknown") {
   if (classroomRecoveryInProgress) {
     console.log("CLASSROOM RECOVERY SKIPPED - already running:", reason);
