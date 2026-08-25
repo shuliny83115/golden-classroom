@@ -175,10 +175,8 @@ async function recoverClassroomConnections(reason = "unknown") {
 
   try {
     // 1. 先恢復 Room Agent 桌面串流 + Control DataChannel
-    if (profile?.role === "teacher") {
-      console.log("RECOVERY: rebuilding Room1 viewer...");
-      await startWebRtcViewer(true);
-    }
+    console.log("RECOVERY: rebuilding Room1 viewer...");
+await startWebRtcViewer(true);
 
     console.log("RECOVERY: rebuilding media signaling...");
 await subscribeMediaSignals();
