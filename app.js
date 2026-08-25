@@ -180,6 +180,9 @@ async function recoverClassroomConnections(reason = "unknown") {
       await startWebRtcViewer(true);
     }
 
+    console.log("RECOVERY: rebuilding media signaling...");
+await subscribeMediaSignals();
+
     // 2. 再恢復老師 / 學生攝影機與麥克風 WebRTC
     console.log("RECOVERY: rebuilding media connection...");
 
