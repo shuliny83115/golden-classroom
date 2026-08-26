@@ -1530,17 +1530,10 @@ const h264 = codecs.filter(
   c => c.mimeType.toLowerCase() === "video/h264"
 );
 
-const others = codecs.filter(
-  c => c.mimeType.toLowerCase() !== "video/h264"
-);
-
 if (h264.length > 0) {
-  videoTransceiver.setCodecPreferences([
-    ...h264,
-    ...others
-  ]);
+  videoTransceiver.setCodecPreferences(h264);
 
-  console.log("VIEWER H264 CODEC PREFERRED");
+  console.log("VIEWER H264 ONLY");
 }
 
   rtcPeer.ontrack = (event) => {
