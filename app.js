@@ -1524,18 +1524,6 @@ rtcControlChannel.onerror = (err) => {
   direction: "recvonly"
 });
 
-const codecs = RTCRtpReceiver.getCapabilities("video").codecs;
-
-const h264 = codecs.filter(
-  c => c.mimeType.toLowerCase() === "video/h264"
-);
-
-if (h264.length > 0) {
-  videoTransceiver.setCodecPreferences(h264);
-
-  console.log("VIEWER H264 ONLY");
-}
-
   rtcPeer.ontrack = (event) => {
     const video = ensureVmVideo();
     if (event.streams?.[0]) {
