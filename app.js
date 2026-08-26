@@ -1520,7 +1520,28 @@ rtcControlChannel.onclose = () => {
 rtcControlChannel.onerror = (err) => {
   console.error("CONTROL DATA CHANNEL ERROR", err);
 };
-  rtcPeer.addTransceiver("video", { direction: "recvonly" });
+  const videoTransceiver = rtcPeer.addTransceiver("video", {
+  direction: "recvonly"
+});
+
+const codecs = RTCRtpReceiver.getCapabilities("video").codecs;
+
+const h264 = codecs.filter(
+  c => c.mimeType.toLowerCase() === "video/h264"
+);
+
+const others = codecs.filter(
+  c => c.mimeType.toLowerCase() !== "video/h264"
+);
+
+if (h264.length > 0) {
+  videoTransceiver.setCodecPreferences([
+    ...h264,
+    ...others
+  ]);
+
+  console.log("VIEWER H264 CODEC PREFERRED");
+}
 
   rtcPeer.ontrack = (event) => {
     const video = ensureVmVideo();
