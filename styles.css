@@ -159,3 +159,43 @@
   color: #1f5bd5;
   text-decoration: underline;
 }
+/* ===== 註冊頁面微調 ===== */
+
+/* 身份下拉選單：跟其他輸入框同高度、同圓角 */
+#registerRole {
+  width: 100%;
+  height: 80px;
+  padding: 0 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  background: #fff;
+  font-size: 24px;
+  color: #1f2937;
+  box-sizing: border-box;
+}
+
+/* 建立帳號按鈕與身份欄位保持適當距離 */
+#registerForm .primary {
+  margin-top: 28px;
+}
+
+/* 返回登入區域 */
+.register-back {
+  margin-top: 32px;
+  text-align: center;
+}
+
+/* 返回登入按鈕改成文字連結 */
+#backToLoginBtn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #2563eb;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#backToLoginBtn:hover {
+  text-decoration: underline;
+}
