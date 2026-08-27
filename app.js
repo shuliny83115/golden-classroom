@@ -5,6 +5,12 @@ const loginView = document.querySelector("#loginView");
 const classroomView = document.querySelector("#classroomView");
 const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
+
+const registerForm = document.querySelector("#registerForm");
+const showRegisterBtn = document.querySelector("#showRegisterBtn");
+const backToLoginBtn = document.querySelector("#backToLoginBtn");
+const registerError = document.querySelector("#registerError");
+const registerSuccess = document.querySelector("#registerSuccess");
 const userBadge = document.querySelector("#userBadge");
 const roomNameEl = document.querySelector("#roomName");
 const roomStatus = document.querySelector("#roomStatus");
@@ -1662,6 +1668,142 @@ function subscribeRoomState() {
     )
     .subscribe();
 }
+// ===== 登入 / 註冊畫面切換 =====
+showRegisterBtn.addEventListener("click", () => {
+  loginForm.classList.add("hidden");
+  registerForm.classList.remove("hidden");
+
+  registerError.textContent = "";
+  registerSuccess.textContent = "";
+});
+
+backToLoginBtn.addEventListener("click", () => {
+  registerForm.classList.add("hidden");
+  loginForm.classList.remove("hidden");
+
+  registerError.textContent = "";
+  registerSuccess.textContent = "";
+});
+
+registerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  registerError.textContent = "";
+  registerSuccess.textContent = "";
+
+  const username = document
+    .querySelector("#registerUsername")
+    .value
+    .trim();
+
+  const displayName = document
+    .querySelector("#registerName")
+    .value
+    .trim();
+
+  const password = document
+    .querySelector("#registerPassword")
+    .value;
+
+  const passwordConfirm = document
+    .querySelector("#registerPasswordConfirm")
+    .value;
+
+  const role = document
+    .querySelector("#registerRole")
+    .value;
+
+  // 帳號：至少 6 字元，而且至少有一個英文字母
+  if (username.length < 6 || !/[A-Za-z]/.test(username)) {
+    registerError.textContent = "帳號至少需要 6 個字元，且必須包含英文字母。";
+    return;
+  }
+
+  if (!displayName) {
+    registerError.textContent = "請輸入姓名。";
+    return;
+  }
+
+  // 密碼：至少 6 字元
+  if (password.length < 6) {
+    registerError.textContent = "密碼至少需要 6 個字元。";
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    registerError.textContent = "兩次輸入的密碼不一致。";
+    return;
+  }
+
+  if (role !== "teacher" && role !== "student") {
+    registerError.textContent = "請選擇身份。";
+    return;
+  }
+
+  // 檢查帳號是否已存在
+  const { data: existingProfile, error: checkError } =
+    await supabaseClient
+      .from("profiles")
+      .select("id")
+      .ilike("username", username)
+      .maybeSingle();
+
+  if (checkError) {
+    console.error(checkError);
+    registerError.textContent = "檢查帳號時發生錯誤。";
+    return;
+  }
+
+  if (existingProfile) {
+    registerError.textContent = "這個帳號已經有人使用。";
+    return;
+  }
+
+  // Supabase Auth 仍需要 email，
+  // 所以內部自動產生一個系統用 email，使用者不需要看到。
+  const authEmail =
+    username.toLowerCase() + "@goldenclassroom.test";
+
+  const { data, error } =
+    await supabaseClient.auth.signUp({
+      email: authEmail,
+      password
+    });
+
+  if (error) {
+    console.error(error);
+    registerError.textContent = "建立帳號失敗：" + error.message;
+    return;
+  }
+
+  if (!data.user) {
+    registerError.textContent = "建立帳號失敗，請稍後再試。";
+    return;
+  }
+
+  // 建立 profile
+  const { error: profileError } =
+    await supabaseClient
+      .from("profiles")
+      .insert({
+        id: data.user.id,
+        username,
+        display_name: displayName,
+        role
+      });
+
+  if (profileError) {
+    console.error(profileError);
+    registerError.textContent =
+      "帳號已建立，但個人資料建立失敗。";
+    return;
+  }
+
+  registerSuccess.textContent =
+    "帳號建立成功，可以返回登入。";
+
+  registerForm.reset();
+});
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
