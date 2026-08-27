@@ -718,10 +718,10 @@ async function startLocalMedia() {
 
     if (profile?.role === "teacher") {
       teacherVideo.srcObject = localMediaStream;
-      teacherVideo.muted = true;
+      teacherVideo.muted = false;
     } else if (profile?.role === "student") {
       studentVideo.srcObject = localMediaStream;
-      studentVideo.muted = true;
+      studentVideo.muted = false;
     }
 
     console.log("LOCAL CAMERA/MIC READY");
