@@ -1,5 +1,124 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Golden Classroom</title><link rel="stylesheet" href="./styles.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body>
-<main id="loginView" class="login-shell"><form id="loginForm" class="login-card"><div class="brand">Golden Classroom</div><h1>登入線上教室</h1><p class="muted">登入後會自動進入您的授課教室。</p><label>帳號<input id="account" autocomplete="username" placeholder="teacher01" required></label><label>密碼<input id="password" type="password" autocomplete="current-password" required></label><button class="primary" type="submit">登入</button><p id="loginError" class="error"></p><div class="test-accounts">測試帳號：teacher01 / teacher01、student01 / student01</div></form></main>
+<main id="loginView" class="login-shell">
+
+  <!-- 登入 -->
+  <form id="loginForm" class="login-card">
+    <div class="brand">Golden Classroom</div>
+
+    <h1>登入線上教室</h1>
+    <p class="muted">登入後會自動進入您的授課教室。</p>
+
+    <label>
+      帳號
+      <input
+        id="account"
+        autocomplete="username"
+        placeholder="teacher01"
+        required
+      >
+    </label>
+
+    <label>
+      密碼
+      <input
+        id="password"
+        type="password"
+        autocomplete="current-password"
+        required
+      >
+    </label>
+
+    <button class="primary" type="submit">登入</button>
+
+    <button
+      id="showRegisterBtn"
+      class="ghost"
+      type="button"
+    >
+      註冊帳號
+    </button>
+
+    <p id="loginError" class="error"></p>
+
+    <div class="test-accounts">
+      測試帳號：teacher01 / teacher01、student01 / student01
+    </div>
+  </form>
+
+
+  <!-- 註冊 -->
+  <form id="registerForm" class="login-card hidden">
+    <div class="brand">Golden Classroom</div>
+
+    <h1>註冊帳號</h1>
+    <p class="muted">填寫資料後建立 Golden Classroom 帳號。</p>
+
+    <label>
+      帳號
+      <input
+        id="registerUsername"
+        autocomplete="username"
+        placeholder="至少 6 個字元，需包含英文"
+        required
+      >
+    </label>
+
+    <label>
+      姓名
+      <input
+        id="registerName"
+        autocomplete="name"
+        required
+      >
+    </label>
+
+    <label>
+      密碼
+      <input
+        id="registerPassword"
+        type="password"
+        autocomplete="new-password"
+        placeholder="至少 6 個字元"
+        required
+      >
+    </label>
+
+    <label>
+      確認密碼
+      <input
+        id="registerPasswordConfirm"
+        type="password"
+        autocomplete="new-password"
+        required
+      >
+    </label>
+
+    <label>
+      身份
+      <select id="registerRole" required>
+        <option value="">請選擇身份</option>
+        <option value="teacher">老師</option>
+        <option value="student">學生</option>
+      </select>
+    </label>
+
+    <button class="primary" type="submit">
+      建立帳號
+    </button>
+
+    <button
+      id="backToLoginBtn"
+      class="ghost"
+      type="button"
+    >
+      返回登入
+    </button>
+
+    <p id="registerError" class="error"></p>
+    <p id="registerSuccess" class="muted"></p>
+  </form>
+
+</main>
 <main id="classroomView" class="classroom hidden"><header class="topbar"><div><strong>Golden Classroom</strong><span id="userBadge" class="badge"></span></div><div class="top-actions"><span id="roomStatus" class="status-dot">● Room 連線中</span><button id="logoutBtn" class="ghost">登出</button></div></header><section class="workspace"><aside class="video-column"><section class="video-card">
   <div class="video-label">老師視訊</div>
 
