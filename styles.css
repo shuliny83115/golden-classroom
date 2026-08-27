@@ -125,25 +125,37 @@
   display: none;
 }
 .register-link-row {
-  margin-top: 18px;
+  margin-top: 26px;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px;
-  font-size: 15px;
-  color: #7b8494;
+  gap: 8px;
+
+  font-size: 16px;
+  color: #6f7785;
+  text-align: center;
 }
 
 .register-link {
-  border: 0;
-  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+
+  border: none !important;
+  outline: none;
+  background: none !important;
+  box-shadow: none !important;
+
+  margin: 0;
   padding: 0;
+
   color: #2f6bea;
   font: inherit;
   font-weight: 600;
+
   cursor: pointer;
 }
 
 .register-link:hover {
+  color: #1f5bd5;
   text-decoration: underline;
 }
