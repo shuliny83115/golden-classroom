@@ -1525,21 +1525,21 @@ rtcControlChannel.onerror = (err) => {
 });
   const codecs = RTCRtpReceiver.getCapabilities("video").codecs;
 
-const h264 = codecs.filter(
-  c => c.mimeType.toLowerCase() === "video/h264"
+const vp9 = codecs.filter(
+  c => c.mimeType.toLowerCase() === "video/vp9"
 );
 
 const others = codecs.filter(
-  c => c.mimeType.toLowerCase() !== "video/h264"
+  c => c.mimeType.toLowerCase() !== "video/vp9"
 );
 
-if (h264.length > 0) {
+if (vp9.length > 0) {
   videoTransceiver.setCodecPreferences([
-    ...h264,
+    ...vp9,
     ...others
   ]);
 
-  console.log("VIEWER H264 PREFERRED");
+  console.log("VIEWER VP9 PREFERRED");
 }
 
   rtcPeer.ontrack = (event) => {
