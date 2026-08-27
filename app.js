@@ -1524,6 +1524,9 @@ rtcControlChannel.onerror = (err) => {
   const videoTransceiver = rtcPeer.addTransceiver("video", {
   direction: "recvonly"
 });
+  rtcPeer.addTransceiver("audio", {
+    direction: "recvonly"
+});
   const codecs = RTCRtpReceiver.getCapabilities("video").codecs;
 
 const vp9 = codecs.filter(
