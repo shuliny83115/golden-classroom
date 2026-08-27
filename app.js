@@ -965,7 +965,8 @@ function ensureVmVideo() {
   rtcVideo.id = "roomStream";
   rtcVideo.autoplay = true;
   rtcVideo.playsInline = true;
-  rtcVideo.muted = true;
+  rtcVideo.muted = false;
+  rtcVideo.volume = 1.0;
   rtcVideo.style.width = "100%";
   rtcVideo.style.height = "100%";
   rtcVideo.style.objectFit = "contain";
