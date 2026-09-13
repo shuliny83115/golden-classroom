@@ -1,174 +1,21 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Golden Classroom</title><link rel="stylesheet" href="./styles.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body>
-<main id="loginView" class="login-shell">
-
-  <!-- 登入 -->
-  <form id="loginForm" class="login-card">
-    <div class="brand">Golden Classroom</div>
-
-    <h1>登入線上教室</h1>
-    <p class="muted">登入後會自動進入您的授課教室。</p>
-
-    <label>
-      帳號
-      <input
-        id="account"
-        autocomplete="username"
-        placeholder="teacher01"
-        required
-      >
-    </label>
-
-    <label>
-      密碼
-      <input
-        id="password"
-        type="password"
-        autocomplete="current-password"
-        required
-      >
-    </label>
-
-    <button class="primary" type="submit">登入</button>
-
-    <div class="register-link-row">
-  <span>還沒有帳號？</span>
-  <button
-    id="showRegisterBtn"
-    class="register-link"
-    type="button"
-  >
-    立即註冊
-  </button>
-</div>
-
-    <p id="loginError" class="error"></p>
-
-    <div class="test-accounts">
-      測試帳號：teacher01 / teacher01、student01 / student01
-    </div>
-  </form>
-
-
-  <!-- 註冊 -->
-  <form id="registerForm" class="login-card hidden">
-    <div class="brand">Golden Classroom</div>
-
-    <h1>註冊帳號</h1>
-    <p class="muted">填寫資料後建立 Golden Classroom 帳號。</p>
-
-    <label>
-      帳號
-      <input
-        id="registerUsername"
-        autocomplete="username"
-        placeholder="至少 6 個字元，需包含英文"
-        required
-      >
-    </label>
-
-    <label>
-      姓名
-      <input
-        id="registerName"
-        autocomplete="name"
-        required
-      >
-    </label>
-
-    <label>
-      密碼
-      <input
-        id="registerPassword"
-        type="password"
-        autocomplete="new-password"
-        placeholder="至少 6 個字元"
-        required
-      >
-    </label>
-
-    <label>
-      確認密碼
-      <input
-        id="registerPasswordConfirm"
-        type="password"
-        autocomplete="new-password"
-        required
-      >
-    </label>
-
-    <label>
-      身份
-      <select id="registerRole" required>
-        <option value="">請選擇身份</option>
-        <option value="teacher">老師</option>
-        <option value="student">學生</option>
-      </select>
-    </label>
-
-    <button class="primary" type="submit">
-      建立帳號
-    </button>
-
-    <div class="register-back">
-  <span>已經有帳號？</span>
-  <button id="backToLoginBtn" type="button">返回登入</button>
-</div>
-
-    <p id="registerError" class="error"></p>
-    <p id="registerSuccess" class="muted"></p>
-  </form>
-
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Golden Classroom｜我的課表</title><link rel="stylesheet" href="portal.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<body>
+<main id="authView" class="auth-layout">
+  <section class="intro"><a class="brand" href="index.html"><b>G</b> GOLDEN CLASSROOM</a><div><span class="eyebrow">YOUR NEXT CHAPTER</span><h1>讓每一堂課，<br>都有新的發現。</h1><p>專屬教室、一對一教學。<br>從這裡開始，連結老師與你的下一步。</p></div><p class="intro-foot">✦　一起探索，一起成長。</p></section>
+  <section class="auth-card">
+    <form id="loginForm"><span class="eyebrow">WELCOME BACK</span><h2>歡迎回來</h2><p class="muted">登入帳號，查看你的課表。</p><label>帳號<input id="account" autocomplete="username" required maxlength="100" placeholder="輸入你的帳號"></label><label>密碼<input id="password" type="password" autocomplete="current-password" required></label><button class="primary wide" type="submit">登入 →</button><p class="auth-switch">還沒有帳號？ <button id="showRegister" class="text-button" type="button">立即註冊</button></p></form>
+    <form id="registerForm" hidden><span class="eyebrow">JOIN THE CLASSROOM</span><h2>申請加入教室</h2><p class="muted">送出申請後，由管理員審核開通。</p><label>帳號<input name="username" autocomplete="username" required minlength="6" maxlength="100" placeholder="至少 6 個字元，包含英文"></label><label>姓名<input name="display_name" autocomplete="name" required maxlength="100"></label><div class="two-col"><label>密碼<input name="password" type="password" autocomplete="new-password" required minlength="6" maxlength="128"></label><label>確認密碼<input name="confirm" type="password" autocomplete="new-password" required></label></div><label>申請身分<select name="role" required><option value="">請選擇身分</option><option value="teacher">老師</option><option value="student">學生</option></select></label><button class="primary wide" type="submit">送出註冊申請 →</button><p class="auth-switch">已經有帳號？ <button id="backToLogin" class="text-button" type="button">返回登入</button></p></form>
+    <p id="authMessage" role="status" class="message"></p>
+  </section>
 </main>
-<main id="classroomView" class="classroom hidden"><header class="topbar"><div><strong>Golden Classroom</strong><span id="userBadge" class="badge"></span></div><div class="top-actions"><span id="roomStatus" class="status-dot">● Room 連線中</span><button id="logoutBtn" class="ghost">登出</button></div></header><section class="workspace"><aside class="video-column"><section class="video-card">
-  <div class="video-label">老師視訊</div>
-
-  <div class="video-stage">
-    <video
-      id="teacherVideo"
-      class="class-video"
-      autoplay
-      playsinline
-    ></video>
-
-    <div id="teacherCameraOff" class="camera-off hidden">
-      <div class="camera-off-icon">📷</div>
-      <div>老師已關閉攝影機</div>
-    </div>
-  </div>
-</section>
-
-<section class="video-card">
-  <div class="video-label">學生視訊</div>
-
-  <div class="video-stage">
-    <video
-      id="studentVideo"
-      class="class-video"
-      autoplay
-      playsinline
-    ></video>
-
-    <div id="studentCameraOff" class="camera-off hidden">
-      <div class="camera-off-icon">📷</div>
-      <div>學生已關閉攝影機</div>
-    </div>
-  </div>
-</section></aside><section class="vm-panel"><div class="vm-top">
-  <div>
-    <div id="roomName" class="room-title">Room 1</div>
-    <div class="muted small">
-      虛擬機畫面將在 Room Agent 完成後顯示於此
-    </div>
-  </div>
-
-  <div class="vm-top-actions">
-    <button id="vmZoomOut" class="vm-zoom-btn">−</button>
-    <span id="vmZoomLabel" class="vm-zoom-label">100%</span>
-    <button id="vmZoomIn" class="vm-zoom-btn">＋</button>
-    <button id="vmFitBtn" class="vm-fit-btn">符合視窗</button>
-    <div id="modePill" class="mode-pill">老師控制</div>
-  </div>
-</div>
-
-<div class="vm-screen"><div class="vm-empty"><div class="monitor-icon">▣</div><strong>等待 Room Agent</strong><span>目前先驗證登入、角色、Room 配對與控制模式。</span></div></div></section></section><footer class="toolbar"><button id="micBtn" class="tool">🎤 麥克風</button>
-<button id="cameraBtn" class="tool">📷 攝影機</button><div id="controlWrap" class="control-wrap"><button id="controlBtn" class="tool">控制模式 <span id="controlLabel">老師控制</span> ▾</button><div id="controlMenu" class="menu hidden"><button data-mode="teacher">老師控制</button><button data-mode="student">學生控制</button><button data-mode="shared">雙人控制</button></div></div><div id="studentHint" class="student-hint"></div></footer><div id="toast" class="toast hidden"></div></main><script src="./config.js"></script><script src="./app.js?v=26"></script></body></html>
+<div id="portalView" hidden><header class="topbar"><a class="brand" href="index.html"><b>G</b> GOLDEN CLASSROOM</a><div class="user-actions"><span id="userName"></span><span id="roleBadge" class="badge"></span><button id="logout" class="subtle">登出</button></div></header>
+<main class="dashboard"><div class="page-heading"><div><span id="portalEyebrow" class="eyebrow"></span><h1 id="portalTitle"></h1><p id="portalSubtitle" class="muted"></p></div><button id="newLesson" class="primary" hidden>＋ 新增課堂</button></div><section id="stats" class="stats" aria-label="概況"></section>
+<nav class="tabs" aria-label="平台功能"><button data-view="schedule" class="active">我的課表</button><button data-view="applications" hidden>申請審核 <span id="pendingCount"></span></button><button data-view="people" hidden>師生名單</button><button data-view="audit" hidden>異動紀錄</button><button data-view="courses" hidden>課程設定</button></nav><p id="portalMessage" role="status" class="message"></p>
+<section id="schedulePanel"><div class="section-head"><div><h2>課程安排</h2><p class="muted small">台北時間 UTC+8 · 半點開課 · 每堂 55 分鐘 · 課前 5 分鐘開放報到</p></div><div class="filters"><label id="personFilterWrap" hidden>篩選師生<select id="personFilter"><option value="">全部師生</option></select></label><label>起始日期<input id="fromDate" type="date"></label><label>結束日期<input id="toDate" type="date"></label><button id="refresh" class="subtle">重新整理</button></div></div><div id="lessonList" class="lesson-list"></div></section>
+<section id="applicationsPanel" hidden><div class="section-head"><div><h2>待審核申請</h2><p class="muted">核准老師前指定固定教室；核准學生前指定授課老師。</p></div></div><div id="applicationList" class="application-list"></div></section>
+<section id="peoplePanel" hidden><div class="section-head"><div><h2>師生名單</h2><p class="muted">帳號狀態、固定教室與授課關係。</p></div></div><div class="table-wrap"><table><thead><tr><th>姓名 / 帳號</th><th>身分</th><th>狀態</th><th>固定教室 / 授課老師</th><th>操作</th></tr></thead><tbody id="peopleRows"></tbody></table></div></section>
+<section id="auditPanel" hidden><div class="section-head"><div><h2>異動紀錄</h2><p class="muted">保留最近三個月的成功異動，依時間由新到舊排列。</p></div><button id="auditRefresh" class="subtle">更新紀錄</button></div><div id="auditList"></div><button id="auditMore" class="subtle" hidden>載入更早紀錄</button></section><section id="coursesPanel" hidden><h2>課程設定</h2><p class="muted">新增後，老師可在排課時選擇此課程名稱。</p><form id="courseForm"><label>新增課程名稱<input name="courseName" required maxlength="100" placeholder="例如：microbit實作課程"></label><button class="primary" type="submit">新增課程名稱</button><p id="courseMessage" class="message" role="status"></p></form><div id="courseList"></div></section><footer class="page-footer">GOLDEN CLASSROOM <span>讓學習持續發生。</span></footer></main></div>
+<dialog id="bookingDialog"><form id="bookingForm"><div class="dialog-head"><div><span class="eyebrow">NEW LESSON</span><h2>安排一堂新課</h2></div><button type="button" class="subtle" data-close="bookingDialog" aria-label="關閉新增課堂">×</button></div><label>學生<select name="student" id="bookingStudent" required></select></label><label>課程名稱<select name="title" id="bookingCourse" required><option value="">請選擇課程</option></select></label><label>日期<input type="date" name="date" required></label><label>開始時間<select name="start" required><option value="00:30">00:30</option><option value="01:30">01:30</option><option value="02:30">02:30</option><option value="03:30">03:30</option><option value="04:30">04:30</option><option value="05:30">05:30</option><option value="06:30">06:30</option><option value="07:30">07:30</option><option value="08:30">08:30</option><option value="09:30">09:30</option><option value="10:30">10:30</option><option value="11:30">11:30</option><option value="12:30">12:30</option><option value="13:30">13:30</option><option value="14:30">14:30</option><option value="15:30">15:30</option><option value="16:30">16:30</option><option value="17:30">17:30</option><option value="18:30">18:30</option><option value="19:30">19:30</option><option value="20:30">20:30</option><option value="21:30">21:30</option><option value="22:30">22:30</option><option value="23:30">23:30</option></select></label><p class="muted small">每堂固定 55 分鐘，系統自動計算下課時間。課前 5 分鐘可報到；下課後 5 分鐘交接，到下一個半點強制結束，不登出帳號。</p><p class="muted small">使用台北時間，教室會自動帶入你的固定教室。</p><label>課堂備註<textarea name="notes" rows="3" maxlength="2000" placeholder="選填，例如本堂課的學習目標"></textarea></label><p class="message" id="bookingMessage" role="status"></p><button class="primary wide" type="submit">建立課堂</button></form></dialog>
+<dialog id="editDialog"><form id="editForm"><h2>編輯師生資料</h2><p id="editIdentity" class="muted"></p><label>姓名<input id="editName" required maxlength="100"></label><label id="editAssignmentWrap"><span id="editAssignmentLabel"></span><select id="editAssignment"></select></label><p class="muted small">更換老師或教室只影響之後新排的課，已排課程維持原老師及教室。待審核帳號請到「申請審核」指定授課關係。</p><p id="editMessage" class="message" role="status"></p><div class="dialog-actions"><button class="subtle" type="button" data-close="editDialog">返回</button><button class="primary" type="submit">儲存變更</button></div></form></dialog><dialog id="courseEditDialog"><form id="courseEditForm"><h2>編輯課程名稱</h2><label>課程名稱<input id="courseEditName" required maxlength="100"></label><p class="muted small">只影響之後新排的課，已排課程保留原名稱。</p><p id="courseEditMessage" class="message" role="status"></p><div class="dialog-actions"><button class="subtle" type="button" data-close="courseEditDialog">返回</button><button class="primary" type="submit">儲存名稱</button></div></form></dialog><dialog id="confirmDialog"><form id="confirmForm"><h2 id="confirmTitle"></h2><p id="confirmDescription" class="muted"></p><label id="reasonWrap" hidden>取消原因（選填）<textarea id="cancelReason" maxlength="500" rows="3"></textarea></label><p class="message" id="confirmMessage" role="status"></p><div class="dialog-actions"><button class="subtle" type="button" data-close="confirmDialog">返回</button><button class="primary" type="submit">確認</button></div></form></dialog>
+<script src="config.js"></script><script src="portal.js"></script></body></html>

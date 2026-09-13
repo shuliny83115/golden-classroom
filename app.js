@@ -34,6 +34,8 @@ const teacherCameraOff = document.querySelector("#teacherCameraOff");
 const studentCameraOff = document.querySelector("#studentCameraOff");
 
 let profile = null;
+let currentLesson = null;
+let lessonAccessTimer = null;
 let room = null;
 let roomState = null;
 let vmZoom = Number(localStorage.getItem("goldenClassroomVmZoom")) || 100;
@@ -619,7 +621,7 @@ async function subscribeMediaSignals() {
   }
 
   mediaSignalChannel = supabaseClient
-    .channel(`media-signals-${room.id}`)
+    .channel(`lesson-media-${currentLesson.id}`, { config: { private: true } })
     .on(
       "broadcast",
       { event: "media-signal" },
@@ -1176,34 +1178,19 @@ function applyMode(mode, announce = false) {
 async function loadUserContext(user) {
   rtcUserId = user.id;
 
-  const { data: p, error: profileError } = await supabaseClient
-    .from("profiles")
-    .select("id, display_name, role")
-    .eq("id", user.id)
-    .single();
+  const lessonId = new URLSearchParams(location.search).get("lesson");
+  if (!lessonId) throw new Error("請從課表選擇課堂");
+  const context = await window.LessonSession.wait(supabaseClient, lessonId);
+  const profileError = null;
+  window.LessonSession.monitor(supabaseClient, context, leaveLesson);
+  const p = context?.profile;
+  currentLesson = context?.lesson;
 
   if (profileError) throw profileError;
   profile = p;
 
-  const { data: memberships, error: memberError } = await supabaseClient
-    .from("room_members")
-    .select("room_id")
-    .eq("user_id", user.id)
-    .limit(1);
-
-  if (memberError) throw memberError;
-  if (!memberships?.length) throw new Error("此帳號尚未分配教室");
-
-  const roomId = memberships[0].room_id;
-
-  const { data: r, error: roomError } = await supabaseClient
-    .from("rooms")
-    .select("id, room_code, room_name")
-    .eq("id", roomId)
-    .single();
-
-  if (roomError) throw roomError;
-  room = r;
+  room = context.room;
+  const roomId = room.id;
 
   const { data: rs, error: stateError } = await supabaseClient
     .from("room_state")
@@ -1573,7 +1560,7 @@ if (vp9.length > 0) {
     console.log("WebRTC viewer state:", state);
 
     if (state === "connected") {
-      showToast("Room1 桌面串流已連線");
+      showToast(`${room.room_name} 桌面串流已連線`);
     }
 
     if (state === "failed" || state === "closed") {
@@ -1615,8 +1602,7 @@ async function enterClassroom(session) {
   try {
     await loadUserContext(session.user);
   } catch (err) {
-    await supabaseClient.auth.signOut();
-    loginError.textContent = `登入成功，但讀取教室資料失敗：${err.message}`;
+    loginError.textContent = "課堂尚未開始、已結束或無法進入，請返回課表。";
     return;
   }
 
@@ -1643,6 +1629,7 @@ userBadge.textContent =
   showVmWaiting();
   subscribeRoomState();
   startAgentStatusMonitor();
+
   startWebRtcViewer().catch((err) => {
   console.error("INITIAL WEBRTC START FAILED:", err);
   showVmWaiting("桌面串流連線失敗");
@@ -1668,163 +1655,6 @@ function subscribeRoomState() {
     )
     .subscribe();
 }
-// ===== 登入 / 註冊畫面切換 =====
-showRegisterBtn.addEventListener("click", () => {
-  loginForm.classList.add("hidden");
-  registerForm.classList.remove("hidden");
-
-  registerError.textContent = "";
-  registerSuccess.textContent = "";
-});
-
-backToLoginBtn.addEventListener("click", () => {
-  registerForm.classList.add("hidden");
-  loginForm.classList.remove("hidden");
-
-  registerError.textContent = "";
-  registerSuccess.textContent = "";
-});
-
-registerForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  registerError.textContent = "";
-  registerSuccess.textContent = "";
-
-  const username = document
-    .querySelector("#registerUsername")
-    .value
-    .trim();
-
-  const displayName = document
-    .querySelector("#registerName")
-    .value
-    .trim();
-
-  const password = document
-    .querySelector("#registerPassword")
-    .value;
-
-  const passwordConfirm = document
-    .querySelector("#registerPasswordConfirm")
-    .value;
-
-  const role = document
-    .querySelector("#registerRole")
-    .value;
-
-  // 帳號：至少 6 字元，而且至少有一個英文字母
-  if (username.length < 6 || !/[A-Za-z]/.test(username)) {
-    registerError.textContent = "帳號至少需要 6 個字元，且必須包含英文字母。";
-    return;
-  }
-
-  if (!displayName) {
-    registerError.textContent = "請輸入姓名。";
-    return;
-  }
-
-  // 密碼：至少 6 字元
-  if (password.length < 6) {
-    registerError.textContent = "密碼至少需要 6 個字元。";
-    return;
-  }
-
-  if (password !== passwordConfirm) {
-    registerError.textContent = "兩次輸入的密碼不一致。";
-    return;
-  }
-
-  if (role !== "teacher" && role !== "student") {
-    registerError.textContent = "請選擇身份。";
-    return;
-  }
-
-  // 檢查帳號是否已存在
-  const { data: existingProfile, error: checkError } =
-    await supabaseClient
-      .from("profiles")
-      .select("id")
-      .ilike("username", username)
-      .maybeSingle();
-
-  if (checkError) {
-    console.error(checkError);
-    registerError.textContent = "檢查帳號時發生錯誤。";
-    return;
-  }
-
-  if (existingProfile) {
-    registerError.textContent = "這個帳號已經有人使用。";
-    return;
-  }
-
-  // Supabase Auth 仍需要 email，
-  // 所以內部自動產生一個系統用 email，使用者不需要看到。
-  const authEmail =
-    username.toLowerCase() + "@goldenclassroom.test";
-
-  const { data, error } =
-    await supabaseClient.auth.signUp({
-      email: authEmail,
-      password
-    });
-
-  if (error) {
-    console.error(error);
-    registerError.textContent = "建立帳號失敗：" + error.message;
-    return;
-  }
-
-  if (!data.user) {
-    registerError.textContent = "建立帳號失敗，請稍後再試。";
-    return;
-  }
-
-  // 建立 profile
-  const { error: profileError } =
-    await supabaseClient
-      .from("profiles")
-      .insert({
-        id: data.user.id,
-        username,
-        display_name: displayName,
-        role
-      });
-
-  if (profileError) {
-    console.error(profileError);
-    registerError.textContent =
-      "帳號已建立，但個人資料建立失敗。";
-    return;
-  }
-
-  registerSuccess.textContent =
-    "帳號建立成功，可以返回登入。";
-
-  registerForm.reset();
-});
-
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  loginError.textContent = "";
-
-  const account = document.querySelector("#account").value;
-  const password = document.querySelector("#password").value;
-
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email: accountToEmail(account),
-    password
-  });
-
-  if (error) {
-    loginError.textContent = "帳號或密碼錯誤";
-    return;
-  }
-
-  await enterClassroom(data.session);
-});
-
 controlBtn.addEventListener("click", () => {
   controlMenu.classList.toggle("hidden");
 });
@@ -1864,17 +1694,34 @@ document.querySelector("#logoutBtn").addEventListener("click", async () => {
   location.reload();
 });
 
-(async () => {
-  if (
-    !cfg.SUPABASE_URL ||
-    cfg.SUPABASE_URL.includes("YOUR_PROJECT") ||
-    !cfg.SUPABASE_ANON_KEY ||
-    cfg.SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")
-  ) {
-    loginError.textContent = "尚未設定 Supabase URL / Publishable Key";
-    return;
+function leaveLesson() {
+  clearInterval(lessonAccessTimer);
+  clearInterval(agentStatusTimer);
+  clearInterval(controlPingTimer);
+  if (mediaReconnectTimer) clearTimeout(mediaReconnectTimer);
+  if (rtcControlChannel?.readyState === "open") {
+    rtcControlChannel.send(JSON.stringify({ type: "release_all_keys" }));
   }
-
-  const { data } = await supabaseClient.auth.getSession();
-  if (data.session) await enterClassroom(data.session);
+  closeWebRtcViewer();
+  mediaPeer?.close();
+  localMediaStream?.getTracks().forEach(track => track.stop());
+  supabaseClient.removeAllChannels();
+  location.replace("./index.html");
+}
+window.addEventListener("pagehide", () => {
+  clearInterval(lessonAccessTimer);
+  mediaPeer?.close();
+  localMediaStream?.getTracks().forEach(track => track.stop());
+  rtcPeer?.close();
+});
+(async () => {
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error || !data.session) { location.replace("./index.html"); return; }
+  try { await enterClassroom(data.session); }
+  catch (error) {
+    loginView.classList.remove("hidden");
+    classroomView.classList.add("hidden");
+    loginError.textContent = "無法啟動教室，請檢查攝影機與麥克風權限，或返回課表重試。";
+    localMediaStream?.getTracks().forEach(track => track.stop());
+  }
 })();
