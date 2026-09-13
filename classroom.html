@@ -1,5 +1,12 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Golden Classroom</title><link rel="stylesheet" href="./styles.css"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head><body>
-<main id="loginView" class="login-shell">
+<style>
+#loginView{display:none!important}
+#classroomLoading{position:fixed;inset:0;z-index:9998;display:grid;place-content:center;text-align:center;background:#f6f7f3;color:#204d3b;font:18px system-ui;padding:24px}
+.lesson-finish{margin-left:auto;background:#204d3b;color:white;border:0;border-radius:8px;padding:12px 16px;cursor:pointer}
+.lesson-finish:disabled{background:#d9dedb;color:#68736c;cursor:not-allowed;opacity:1}
+</style>
+<section id="classroomLoading" role="status"><h2>正在進入教室</h2><p id="classroomLoadingMessage">正在確認登入與課程資格…</p><a href="./index.html">返回課表</a></section>
+<main id="loginView" class="login-shell" hidden>
 
   <!-- 登入 -->
   <form id="loginForm" class="login-card">

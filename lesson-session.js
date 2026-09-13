@@ -22,8 +22,8 @@ window.LessonSession = (() => {
     const id=context.lesson.id;
     deadline=performance.now()+Math.max(0,new Date(context.lesson.ends_at).getTime()+300000-new Date(context.server_now).getTime());
     lastVerified=performance.now();let busy=false;
-    finish.textContent=context.profile.role==='teacher'?'結束本堂課':'離開教室';finish.style.cssText='position:fixed;right:24px;bottom:24px;z-index:999;padding:12px;background:#204d3b;color:white;border-radius:8px';
-    document.body.append(finish);
+    finish.textContent=context.profile.role==='teacher'?'結束本堂課':'離開教室';finish.className='lesson-finish';
+    document.querySelector('.toolbar').append(finish);
     const stop=()=>{if(closed)return;closed=true;clearInterval(timer);finish.remove();leave();};
     finish.onclick=async()=>{finish.disabled=true;const {error}=await sb.rpc(context.profile.role==='teacher'?'gc_end_lesson':'gc_leave_lesson',{p_lesson:id});if(error){finish.disabled=false;alert('尚未到下課時間，或連線失敗，請重試。');}else stop();};
     timer=setInterval(async()=>{

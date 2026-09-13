@@ -1602,12 +1602,13 @@ async function enterClassroom(session) {
   try {
     await loadUserContext(session.user);
   } catch (err) {
-    loginError.textContent = "課堂尚未開始、已結束或無法進入，請返回課表。";
+    document.querySelector('#classroomLoadingMessage').textContent = "課堂尚未開始、已結束或無法進入，請返回課表。";
     return;
   }
 
   loginView.classList.add("hidden");
 classroomView.classList.remove("hidden");
+document.querySelector('#classroomLoading').style.display = 'none';
 
 // 啟動老師／學生本機攝影機與麥克風
 await startLocalMedia();
@@ -1719,9 +1720,9 @@ window.addEventListener("pagehide", () => {
   if (error || !data.session) { location.replace("./index.html"); return; }
   try { await enterClassroom(data.session); }
   catch (error) {
-    loginView.classList.remove("hidden");
+    document.querySelector('#classroomLoading').style.display = 'grid';
     classroomView.classList.add("hidden");
-    loginError.textContent = "無法啟動教室，請檢查攝影機與麥克風權限，或返回課表重試。";
+    document.querySelector('#classroomLoadingMessage').textContent = "無法啟動教室，請檢查攝影機與麥克風權限，或返回課表重試。";
     localMediaStream?.getTracks().forEach(track => track.stop());
   }
 })();
