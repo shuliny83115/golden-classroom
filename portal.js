@@ -65,7 +65,7 @@
     renderLessons();
   }
   function renderLessons(){if(!dashboard)return;const person=$('personFilter').value;const from=$('fromDate').value,to=$('toDate').value;
-    document.querySelector('#schedulePanel h2').textContent=activeView==='completed'?'已完成課程（近 3 個月）':'課程安排';
+    document.querySelector('#schedulePanel h2').textContent=activeView==='completed'?'已完成課程':'課程安排';
     $('fromDate').closest('label').hidden=activeView==='completed';$('toDate').closest('label').hidden=activeView==='completed';
     if(activeView!=='completed'&&from&&to&&from>to){$('lessonList').innerHTML='<div class="empty"><strong>日期範圍有誤</strong><p>結束日期需晚於或等於起始日期。</p></div>';return;}
     const history=activeView==='completed'; const cutoff=new Date(now()+8*3600000);const day=cutoff.getUTCDate();cutoff.setUTCDate(1);cutoff.setUTCMonth(cutoff.getUTCMonth()-3);const last=new Date(Date.UTC(cutoff.getUTCFullYear(),cutoff.getUTCMonth()+1,0)).getUTCDate();cutoff.setUTCDate(Math.min(day,last));const cutoffMs=cutoff.getTime()-8*3600000;
